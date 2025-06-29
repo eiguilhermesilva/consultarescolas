@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gabyoteca - Controle de Estudos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-green: #30bd9b;
+            --primary-blue: #515184;
+            --lavender: #D2BDEE;
+            --light-yellow: #EADC99;
+            --navy-blue: #121158;
+            --soft-white: #f9f9f9;
+            --light-gray: #f0f0f0;
+            --medium-gray: #e0e0e0;
+            --dark-text: #333333;
+            --light-text: #666666;
+            --ghibli-blue: #8ecae6;
+            --ghibli-green: #a5d6a7;
+            --ghibli-yellow: #ffd166;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--soft-white);
+            color: var(--dark-text);
+            line-height: 1.6;
+            padding: 0px;
+            min-height: 100vh;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="%23a5d6a7" opacity="0.1"/><circle cx="50" cy="50" r="1.5" fill="%238ecae6" opacity="0.1"/><circle cx="80" cy="80" r="3" fill="%23ffd166" opacity="0.1"/></svg>');
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 0 30px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 40px 20px;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        
+        .logo {
+            font-size: 2.8rem;
+            color: var(--primary-green);
+            margin-bottom: 15px;
+            display: inline-block;
+            position: relative;
+        }
+        
+        .logo::after {
+            content: "";
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
+            background-color: var(--ghibli-green);
+            border-radius: 2px;
+        }
+        
+        h1 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 2.5rem;
+            color: var(--navy-blue);
+            margin: 20px 0 10px;
+            position: relative;
+            display: inline-block;
+        }
+        
+        h1::after {
+            content: "";
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background-color: var(--ghibli-blue);
+        }
+        
+        .subtitle {
+            font-size: 1.4rem;
+            color: var(--primary-blue);
+            max-width: 700px;
+            margin: 15px auto 30px;
+            font-weight: 400;
+        }
+        
+        .welcome-message {
+            background-color: rgba(234, 220, 153, 0.3);
+            padding: 25px;
+            border-radius: 16px;
+            max-width: 700px;
+            margin: 0 auto 40px;
+            text-align: center;
+            border: 2px solid var(--light-yellow);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .welcome-message::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background-color: var(--ghibli-yellow);
+        }
+        
+        .welcome-message p {
+            font-size: 1.2rem;
+            color: var(--navy-blue);
+            font-weight: 600;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .welcome-message .highlight {
+            color: var(--primary-green);
+            font-weight: 700;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background-color: var(--primary-green);
+            color: white;
+            padding: 14px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            text-decoration: none;
+            margin-top: 10px;
+            border: 2px solid var(--navy-blue);
+            position: relative;
+            z-index: 2;
+            transition: all 0.3s ease;
+            box-shadow: 4px 4px 0 var(--navy-blue);
+        }
+        
+        .cta-button:hover {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 var(--navy-blue);
+        }
+        
+        .cta-button i {
+            margin-left: 8px;
+            transition: transform 0.3s ease;
+        }
+        
+        .cta-button:hover i {
+            transform: translateX(5px);
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        @media (max-width: 1100px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            border: 2px solid var(--navy-blue);
+            box-shadow: 8px 8px 0 var(--navy-blue);
+            transition: all 0.3s ease;
+        }
+        
+        .panel:hover {
+            transform: translate(4px, 4px);
+            box-shadow: 4px 4px 0 var(--navy-blue);
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--ghibli-green);
+        }
+        
+        .panel-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--navy-blue);
+        }
+        
+        .panel-icon {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(210, 189, 238, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: var(--navy-blue);
+            border: 2px solid var(--navy-blue);
+        }
+        
+        .notes-container {
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .note-editor {
+            flex-grow: 1;
+            border: 2px solid var(--navy-blue);
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Nunito', sans-serif;
+            font-size: 1rem;
+            resize: none;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .note-editor:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(18, 17, 88, 0.2);
+        }
+        
+        .notes-actions {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .notes-button {
+            flex: 1;
+            padding: 12px;
+            font-weight: 600;
+            border-radius: 8px;
+            border: 2px solid var(--navy-blue);
+            box-shadow: 4px 4px 0 var(--navy-blue);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .notes-button:hover {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 var(--navy-blue);
+        }
+        
+        .save-button {
+            background: var(--primary-green);
+            color: white;
+        }
+        
+        .clear-button {
+            background: var(--ghibli-yellow);
+            color: var(--navy-blue);
+        }
+        
+        .checklist {
+            margin-top: 20px;
+        }
+        
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background-color: rgba(142, 202, 230, 0.1);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .checklist-item:hover {
+            background-color: rgba(142, 202, 230, 0.2);
+        }
+        
+        .custom-checkbox {
+            position: relative;
+            width: 24px;
+            height: 24px;
+            background-color: white;
+            border: 2px solid var(--navy-blue);
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 15px;
+            transition: all 0.2s ease;
+        }
+        
+        .custom-checkbox.checked {
+            background-color: var(--primary-green);
+            border-color: var(--primary-green);
+        }
+        
+        .custom-checkbox.checked::after {
+            content: "";
+            position: absolute;
+            left: 7px;
+            top: 3px;
+            width: 6px;
+            height: 12px;
+            border: solid white;
+            border-width: 0 3px 3px 0;
+            transform: rotate(45deg);
+        }
+        
+        .checklist-text {
+            flex-grow: 1;
+            font-size: 1.1rem;
+        }
+        
+        .checklist-text.completed {
+            text-decoration: line-through;
+            color: var(--light-text);
+        }
+        
+        .delete-item {
+            color: #ff6b6b;
+            cursor: pointer;
+            padding: 5px;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+        }
+        
+        .delete-item:hover {
+            transform: scale(1.2);
+        }
+        
+        .add-item {
+            display: flex;
+            margin-top: 20px;
+        }
+        
+        .add-item input {
+            flex-grow: 1;
+            padding: 12px 15px;
+            border: 2px solid var(--navy-blue);
+            border-radius: 8px 0 0 8px;
+            font-family: 'Nunito', sans-serif;
+            font-size: 1rem;
+        }
+        
+        .add-item input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(18, 17, 88, 0.2);
+        }
+        
+        .add-button {
+            background-color: var(--primary-green);
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 0 8px 8px 0;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .add-button:hover {
+            background-color: #279d7f;
+        }
+        
+        .topics-container {
+            margin-top: 20px;
+        }
+        
+        .topic {
+            margin-bottom: 20px;
+            border: 2px solid var(--navy-blue);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .topic-header {
+            background-color: rgba(210, 189, 238, 0.3);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .topic-header:hover {
+            background-color: rgba(210, 189, 238, 0.5);
+        }
+        
+        .topic-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--navy-blue);
+        }
+        
+        .topic-icon {
+            transition: transform 0.3s ease;
+        }
+        
+        .topic.active .topic-icon {
+            transform: rotate(180deg);
+        }
+        
+        .topic-content {
+            padding: 20px;
+            background-color: white;
+            display: none;
+        }
+        
+        .topic.active .topic-content {
+            display: block;
+        }
+        
+        .materials-list {
+            list-style-type: none;
+        }
+        
+        .material-item {
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            background-color: rgba(142, 202, 230, 0.1);
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .material-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .material-icon {
+            color: var(--navy-blue);
+        }
+        
+        .material-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .material-action {
+            cursor: pointer;
+            padding: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .material-action:hover {
+            transform: scale(1.2);
+        }
+        
+        .add-material {
+            display: flex;
+            margin-top: 15px;
+        }
+        
+        .add-material input {
+            flex-grow: 1;
+            padding: 10px 15px;
+            border: 2px solid var(--navy-blue);
+            border-radius: 8px 0 0 8px;
+            font-family: 'Nunito', sans-serif;
+            font-size: 1rem;
+        }
+        
+        .add-material input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(18, 17, 88, 0.2);
+        }
+        
+        .add-material-button {
+            background-color: var(--primary-green);
+            color: white;
+            border: none;
+            padding: 0 15px;
+            border-radius: 0 8px 8px 0;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .add-material-button:hover {
+            background-color: #279d7f;
+        }
+        
+        .export-panel {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .export-title {
+            font-size: 1.8rem;
+            color: var(--navy-blue);
+            margin-bottom: 30px;
+        }
+        
+        .export-options {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .export-option {
+            width: 180px;
+            height: 180px;
+            background: white;
+            border: 2px solid var(--navy-blue);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 6px 6px 0 var(--navy-blue);
+        }
+        
+        .export-option:hover {
+            transform: translate(4px, 4px);
+            box-shadow: 2px 2px 0 var(--navy-blue);
+        }
+        
+        .export-icon {
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+            color: var(--navy-blue);
+        }
+        
+        .export-label {
+            font-weight: 600;
+            color: var(--navy-blue);
+        }
+        
+        .export-button {
+            display: inline-block;
+            background-color: var(--primary-green);
+            color: white;
+            padding: 14px 60px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-radius: 10px;
+            text-decoration: none;
+            border: 2px solid var(--navy-blue);
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: 6px 6px 0 var(--navy-blue);
+        }
+        
+        .export-button:hover {
+            transform: translate(4px, 4px);
+            box-shadow: 2px 2px 0 var(--navy-blue);
+        }
+        
+        .ghibli-decoration {
+            position: absolute;
+            z-index: -1;
+            opacity: 0.08;
+            font-size: 8rem;
+        }
+        
+        .decoration-1 {
+            top: 20px;
+            left: 5%;
+            color: var(--ghibli-green);
+        }
+        
+        .decoration-2 {
+            bottom: 10%;
+            right: 8%;
+            color: var(--ghibli-blue);
+            transform: rotate(15deg);
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .subtitle {
+                font-size: 1.1rem;
+            }
+            
+            .panel {
+                padding: 20px;
+            }
+            
+            .panel-title {
+                font-size: 1.5rem;
+            }
+            
+            .export-option {
+                width: 140px;
+                height: 140px;
+            }
+            
+            .export-icon {
+                font-size: 2.5rem;
+            }
+            
+            .container {
+                padding: 0 15px;
+            }
+            
+            .notes-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="ghibli-decoration decoration-1">
+                <i class="fas fa-cloud"></i>
+            </div>
+            <div class="ghibli-decoration decoration-2">
+                <i class="fas fa-leaf"></i>
+            </div>
+            
+            <div class="logo">
+                <i class="fas fa-tasks"></i>
+            </div>
+            <h1>Controle de Estudos</h1>
+            <p class="subtitle">Organize suas tarefas, anotações, tópicos e materiais em um único lugar</p>
+            
+            <div class="welcome-message">
+                <p>Olá, <span class="highlight">Gaby</span>! Vamos organizar sua sessão de estudos?</p>
+                <a href="#" class="cta-button">Começar agora <i class="fas fa-arrow-right"></i></a>
+                
+                <div class="ghibli-element" style="position: absolute; bottom: -20px; right: -20px; opacity: 0.2; font-size: 8rem; z-index: 1; color: var(--ghibli-green); transform: rotate(-15deg);">
+                    <i class="fas fa-book"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="dashboard">
+            <!-- Painel de Anotações -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Anotações</h2>
+                    <div class="panel-icon">
+                        <i class="fas fa-pencil-alt"></i>
+                    </div>
+                </div>
+                <div class="notes-container">
+                    <textarea class="note-editor" placeholder="Comece a escrever suas anotações aqui...">- Matemática: Revisar equações de segundo grau
+- História: Pesquisar sobre Revolução Francesa
+- Química: Estudar tabela periódica</textarea>
+                    <div class="notes-actions">
+                        <button class="notes-button save-button">
+                            <i class="fas fa-save"></i> Salvar Anotações
+                        </button>
+                        <button class="notes-button clear-button">
+                            <i class="fas fa-trash"></i> Limpar Tudo
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Painel de Checklist -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Checklist de Tarefas</h2>
+                    <div class="panel-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+                <div class="checklist">
+                    <div class="checklist-item">
+                        <div class="custom-checkbox checked"></div>
+                        <div class="checklist-text completed">Revisar resumos de biologia</div>
+                        <div class="delete-item"><i class="fas fa-times"></i></div>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="custom-checkbox"></div>
+                        <div class="checklist-text">Resolver exercícios de matemática</div>
+                        <div class="delete-item"><i class="fas fa-times"></i></div>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="custom-checkbox"></div>
+                        <div class="checklist-text">Assistir vídeo-aula de física</div>
+                        <div class="delete-item"><i class="fas fa-times"></i></div>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="custom-checkbox checked"></div>
+                        <div class="checklist-text completed">Fazer mapa mental de história</div>
+                        <div class="delete-item"><i class="fas fa-times"></i></div>
+                    </div>
+                    <div class="add-item">
+                        <input type="text" placeholder="Adicionar nova tarefa...">
+                        <button class="add-button"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Painel de Tópicos e Materiais -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Tópicos e Materiais</h2>
+                    <div class="panel-icon">
+                        <i class="fas fa-folder-open"></i>
+                    </div>
+                </div>
+                <div class="topics-container">
+                    <div class="topic active">
+                        <div class="topic-header">
+                            <div class="topic-title">Matemática</div>
+                            <div class="topic-icon"><i class="fas fa-chevron-down"></i></div>
+                        </div>
+                        <div class="topic-content">
+                            <ul class="materials-list">
+                                <li class="material-item">
+                                    <div class="material-name">
+                                        <i class="fas fa-file-pdf material-icon"></i>
+                                        <span>Resumo - Álgebra Linear</span>
+                                    </div>
+                                    <div class="material-actions">
+                                        <div class="material-action"><i class="fas fa-download" title="Baixar"></i></div>
+                                        <div class="material-action"><i class="fas fa-trash" title="Excluir"></i></div>
+                                    </div>
+                                </li>
+                                <li class="material-item">
+                                    <div class="material-name">
+                                        <i class="fas fa-file-alt material-icon"></i>
+                                        <span>Lista de Exercícios</span>
+                                    </div>
+                                    <div class="material-actions">
+                                        <div class="material-action"><i class="fas fa-download" title="Baixar"></i></div>
+                                        <div class="material-action"><i class="fas fa-trash" title="Excluir"></i></div>
+                                    </div>
+                                </li>
+                                <li class="material-item">
+                                    <div class="material-name">
+                                        <i class="fas fa-link material-icon"></i>
+                                        <span>Link útil: Khan Academy</span>
+                                    </div>
+                                    <div class="material-actions">
+                                        <div class="material-action"><i class="fas fa-external-link-alt" title="Abrir"></i></div>
+                                        <div class="material-action"><i class="fas fa-trash" title="Excluir"></i></div>
+                                    </div>
+                                </li>
+                            </ul>
+                            <div class="add-material">
+                                <input type="text" placeholder="Adicionar novo material...">
+                                <button class="add-material-button"><i class="fas fa-plus"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="topic">
+                        <div class="topic-header">
+                            <div class="topic-title">História</div>
+                            <div class="topic-icon"><i class="fas fa-chevron-down"></i></div>
+                        </div>
+                        <div class="topic-content">
+                            <ul class="materials-list">
+                                <li class="material-item">
+                                    <div class="material-name">
+                                        <i class="fas fa-file-pdf material-icon"></i>
+                                        <span>Linha do Tempo - Idade Média</span>
+                                    </div>
+                                    <div class="material-actions">
+                                        <div class="material-action"><i class="fas fa-download" title="Baixar"></i></div>
+                                        <div class="material-action"><i class="fas fa-trash" title="Excluir"></i></div>
+                                    </div>
+                                </li>
+                            </ul>
+                            <div class="add-material">
+                                <input type="text" placeholder="Adicionar novo material...">
+                                <button class="add-material-button"><i class="fas fa-plus"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="topic">
+                        <div class="topic-header">
+                            <div class="topic-title">Química</div>
+                            <div class="topic-icon"><i class="fas fa-chevron-down"></i></div>
+                        </div>
+                        <div class="topic-content">
+                            <ul class="materials-list">
+                                <li class="material-item">
+                                    <div class="material-name">
+                                        <i class="fas fa-file-image material-icon"></i>
+                                        <span>Tabela Periódica Interativa</span>
+                                    </div>
+                                    <div class="material-actions">
+                                        <div class="material-action"><i class="fas fa-download" title="Baixar"></i></div>
+                                        <div class="material-action"><i class="fas fa-trash" title="Excluir"></i></div>
+                                    </div>
+                                </li>
+                            </ul>
+                            <div class="add-material">
+                                <input type="text" placeholder="Adicionar novo material...">
+                                <button class="add-material-button"><i class="fas fa-plus"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Painel de Exportação -->
+            <div class="panel export-panel">
+                <h2 class="export-title">Exportar Materiais de Estudo</h2>
+                <div class="export-options">
+                    <div class="export-option">
+                        <i class="fas fa-file-pdf export-icon"></i>
+                        <div class="export-label">Exportar para PDF</div>
+                    </div>
+                    <div class="export-option">
+                        <i class="fas fa-file-word export-icon"></i>
+                        <div class="export-label">Exportar para Word</div>
+                    </div>
+                    <div class="export-option">
+                        <i class="fas fa-file-excel export-icon"></i>
+                        <div class="export-label">Exportar para Excel</div>
+                    </div>
+                    <div class="export-option">
+                        <i class="fas fa-file-image export-icon"></i>
+                        <div class="export-label">Exportar Imagens</div>
+                    </div>
+                </div>
+                <button class="export-button">Exportar Tudo <i class="fas fa-download"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Funções para o Checklist
+        document.querySelectorAll('.custom-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('click', function() {
+                this.classList.toggle('checked');
+                const text = this.nextElementSibling;
+                text.classList.toggle('completed');
+            });
+        });
+        
+        document.querySelectorAll('.delete-item').forEach(deleteBtn => {
+            deleteBtn.addEventListener('click', function() {
+                this.closest('.checklist-item').remove();
+            });
+        });
+        
+        document.querySelector('.add-button').addEventListener('click', function() {
+            const input = this.previousElementSibling;
+            const taskText = input.value.trim();
+            
+            if (taskText) {
+                const checklist = document.querySelector('.checklist');
+                const newItem = document.createElement('div');
+                newItem.className = 'checklist-item';
+                newItem.innerHTML = `
+                    <div class="custom-checkbox"></div>
+                    <div class="checklist-text">${taskText}</div>
+                    <div class="delete-item"><i class="fas fa-times"></i></div>
+                `;
+                
+                const deleteBtn = newItem.querySelector('.delete-item');
+                deleteBtn.addEventListener('click', function() {
+                    this.closest('.checklist-item').remove();
+                });
+                
+                const checkbox = newItem.querySelector('.custom-checkbox');
+                checkbox.addEventListener('click', function() {
+                    this.classList.toggle('checked');
+                    const text = this.nextElementSibling;
+                    text.classList.toggle('completed');
+                });
+                
+                checklist.insertBefore(newItem, this.parentElement);
+                input.value = '';
+            }
+        });
+        
+        // Funções para os Tópicos
+        document.querySelectorAll('.topic-header').forEach(header => {
+            header.addEventListener('click', function() {
+                const topic = this.parentElement;
+                topic.classList.toggle('active');
+            });
+        });
+        
+        // Funções para Anotações
+        document.querySelector('.save-button').addEventListener('click', function() {
+            alert('Anotações salvas com sucesso!');
+        });
+        
+        document.querySelector('.clear-button').addEventListener('click', function() {
+            if (confirm('Tem certeza que deseja limpar todas as anotações?')) {
+                document.querySelector('.note-editor').value = '';
+            }
+        });
+        
+        // Funções de Exportação
+        document.querySelectorAll('.export-option').forEach(option => {
+            option.addEventListener('click', function() {
+                const format = this.querySelector('.export-label').textContent.split(' ')[1];
+                alert(`Iniciando exportação para ${format}...`);
+            });
+        });
+        
+        document.querySelector('.export-button').addEventListener('click', function() {
+            alert('Exportando todos os materiais...');
+        });
+        
+        // Animação para o botão principal
+        const ctaButton = document.querySelector('.cta-button');
+        ctaButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Animação
+            this.style.transform = "translate(4px, 4px)";
+            this.style.boxShadow = "2px 2px 0 var(--navy-blue)";
+            setTimeout(() => {
+                this.style.transform = "";
+                this.style.boxShadow = "4px 4px 0 var(--navy-blue)";
+            }, 200);
+            
+            // Scroll para o dashboard
+            document.querySelector('.dashboard').scrollIntoView({ 
+                behavior: 'smooth' 
+            });
+        });
+        
+        // Animação para os painéis ao aparecerem na tela
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = 1;
+                    entry.target.style.transform = "translate(0, 0)";
+                }
+            });
+        }, { threshold: 0.1 });
+        
+        document.querySelectorAll('.panel').forEach(panel => {
+            panel.style.opacity = 0;
+            panel.style.transform = "translate(0, 20px)";
+            panel.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+            observer.observe(panel);
+        });
+    </script>
+</body>
+</html>
