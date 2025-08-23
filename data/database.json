@@ -11,6 +11,12 @@
       "nome": "Produto B", 
       "preco": 49.90,
       "descricao": "Descrição do produto B"
+    },
+     {
+      "id": 2,
+      "nome": "Produto C", 
+      "preco": 69.90,
+      "descricao": "Descrição do produto C"
     }
   ],
   "configuracoes": {
