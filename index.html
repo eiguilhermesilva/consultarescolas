@@ -3,969 +3,837 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gabyoteca - Controle de Estudos</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <title>Sistema de Gestão Escolar - Tocantins</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
         :root {
-            --primary-green: #30bd9b;
-            --primary-blue: #515184;
-            --lavender: #D2BDEE;
-            --light-yellow: #EADC99;
-            --navy-blue: #121158;
-            --soft-white: #f9f9f9;
-            --light-gray: #f0f0f0;
-            --medium-gray: #e0e0e0;
-            --dark-text: #333333;
-            --light-text: #666666;
-            --ghibli-blue: #8ecae6;
-            --ghibli-green: #a5d6a7;
-            --ghibli-yellow: #ffd166;
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+            --primary: #1a4f72;
+            --secondary: #3a7ca5;
+            --light-bg: #f8f9fa;
+            --accent: #f27d42;
         }
         
         body {
-            font-family: 'Nunito', sans-serif;
-            background-color: var(--soft-white);
-            color: var(--dark-text);
-            line-height: 1.6;
-            padding: 0px;
-            min-height: 100vh;
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="%23a5d6a7" opacity="0.1"/><circle cx="50" cy="50" r="1.5" fill="%238ecae6" opacity="0.1"/><circle cx="80" cy="80" r="3" fill="%23ffd166" opacity="0.1"/></svg>');
-            overflow-x: hidden;
+            background-color: #f5f7f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
-        .container {
-            max-width: 1500px;
-            margin: 0 auto;
-            padding: 0 30px;
+        .navbar {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
         
-        .header {
-            text-align: center;
-            padding: 40px 20px;
-            margin-bottom: 30px;
-            position: relative;
-        }
-        
-        .logo {
-            font-size: 2.8rem;
-            color: var(--primary-green);
-            margin-bottom: 15px;
-            display: inline-block;
-            position: relative;
-        }
-        
-        .logo::after {
-            content: "";
-            position: absolute;
-            bottom: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 3px;
-            background-color: var(--ghibli-green);
-            border-radius: 2px;
-        }
-        
-        h1 {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 700;
-            font-size: 2.5rem;
-            color: var(--navy-blue);
-            margin: 20px 0 10px;
-            position: relative;
-            display: inline-block;
-        }
-        
-        h1::after {
-            content: "";
-            position: absolute;
-            bottom: -5px;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background-color: var(--ghibli-blue);
-        }
-        
-        .subtitle {
-            font-size: 1.4rem;
-            color: var(--primary-blue);
-            max-width: 700px;
-            margin: 15px auto 30px;
-            font-weight: 400;
-        }
-        
-        .welcome-message {
-            background-color: rgba(234, 220, 153, 0.3);
-            padding: 25px;
-            border-radius: 16px;
-            max-width: 700px;
-            margin: 0 auto 40px;
-            text-align: center;
-            border: 2px solid var(--light-yellow);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .welcome-message::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 5px;
-            background-color: var(--ghibli-yellow);
-        }
-        
-        .welcome-message p {
-            font-size: 1.2rem;
-            color: var(--navy-blue);
-            font-weight: 600;
-            margin-bottom: 20px;
-            position: relative;
-            z-index: 2;
-        }
-        
-        .welcome-message .highlight {
-            color: var(--primary-green);
-            font-weight: 700;
-        }
-        
-        .cta-button {
-            display: inline-block;
-            background-color: var(--primary-green);
-            color: white;
-            padding: 14px 40px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            border-radius: 10px;
-            text-decoration: none;
-            margin-top: 10px;
-            border: 2px solid var(--navy-blue);
-            position: relative;
-            z-index: 2;
+        .school-card {
             transition: all 0.3s ease;
-            box-shadow: 4px 4px 0 var(--navy-blue);
-        }
-        
-        .cta-button:hover {
-            transform: translate(2px, 2px);
-            box-shadow: 2px 2px 0 var(--navy-blue);
-        }
-        
-        .cta-button i {
-            margin-left: 8px;
-            transition: transform 0.3s ease;
-        }
-        
-        .cta-button:hover i {
-            transform: translateX(5px);
-        }
-        
-        .dashboard {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-top: 40px;
-        }
-        
-        @media (max-width: 1100px) {
-            .dashboard {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        .panel {
-            background: white;
-            border-radius: 16px;
-            padding: 30px;
-            border: 2px solid var(--navy-blue);
-            box-shadow: 8px 8px 0 var(--navy-blue);
-            transition: all 0.3s ease;
-        }
-        
-        .panel:hover {
-            transform: translate(4px, 4px);
-            box-shadow: 4px 4px 0 var(--navy-blue);
-        }
-        
-        .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--ghibli-green);
-        }
-        
-        .panel-title {
-            font-family: 'Poppins', sans-serif;
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--navy-blue);
-        }
-        
-        .panel-icon {
-            width: 50px;
-            height: 50px;
-            background-color: rgba(210, 189, 238, 0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8rem;
-            color: var(--navy-blue);
-            border: 2px solid var(--navy-blue);
-        }
-        
-        .notes-container {
-            min-height: 300px;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .note-editor {
-            flex-grow: 1;
-            border: 2px solid var(--navy-blue);
-            border-radius: 10px;
-            padding: 15px;
-            font-family: 'Nunito', sans-serif;
-            font-size: 1rem;
-            resize: none;
-            margin-bottom: 20px;
-            transition: all 0.3s ease;
-        }
-        
-        .note-editor:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(18, 17, 88, 0.2);
-        }
-        
-        .notes-actions {
-            display: flex;
-            gap: 15px;
-        }
-        
-        .notes-button {
-            flex: 1;
-            padding: 12px;
-            font-weight: 600;
-            border-radius: 8px;
-            border: 2px solid var(--navy-blue);
-            box-shadow: 4px 4px 0 var(--navy-blue);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        
-        .notes-button:hover {
-            transform: translate(2px, 2px);
-            box-shadow: 2px 2px 0 var(--navy-blue);
-        }
-        
-        .save-button {
-            background: var(--primary-green);
-            color: white;
-        }
-        
-        .clear-button {
-            background: var(--ghibli-yellow);
-            color: var(--navy-blue);
-        }
-        
-        .checklist {
-            margin-top: 20px;
-        }
-        
-        .checklist-item {
-            display: flex;
-            align-items: center;
-            padding: 15px;
-            background-color: rgba(142, 202, 230, 0.1);
-            border-radius: 10px;
-            margin-bottom: 10px;
-            transition: all 0.3s ease;
-        }
-        
-        .checklist-item:hover {
-            background-color: rgba(142, 202, 230, 0.2);
-        }
-        
-        .custom-checkbox {
-            position: relative;
-            width: 24px;
-            height: 24px;
-            background-color: white;
-            border: 2px solid var(--navy-blue);
-            border-radius: 5px;
-            cursor: pointer;
-            margin-right: 15px;
-            transition: all 0.2s ease;
-        }
-        
-        .custom-checkbox.checked {
-            background-color: var(--primary-green);
-            border-color: var(--primary-green);
-        }
-        
-        .custom-checkbox.checked::after {
-            content: "";
-            position: absolute;
-            left: 7px;
-            top: 3px;
-            width: 6px;
-            height: 12px;
-            border: solid white;
-            border-width: 0 3px 3px 0;
-            transform: rotate(45deg);
-        }
-        
-        .checklist-text {
-            flex-grow: 1;
-            font-size: 1.1rem;
-        }
-        
-        .checklist-text.completed {
-            text-decoration: line-through;
-            color: var(--light-text);
-        }
-        
-        .delete-item {
-            color: #ff6b6b;
-            cursor: pointer;
-            padding: 5px;
-            font-size: 1.2rem;
-            transition: all 0.3s ease;
-        }
-        
-        .delete-item:hover {
-            transform: scale(1.2);
-        }
-        
-        .add-item {
-            display: flex;
-            margin-top: 20px;
-        }
-        
-        .add-item input {
-            flex-grow: 1;
-            padding: 12px 15px;
-            border: 2px solid var(--navy-blue);
-            border-radius: 8px 0 0 8px;
-            font-family: 'Nunito', sans-serif;
-            font-size: 1rem;
-        }
-        
-        .add-item input:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(18, 17, 88, 0.2);
-        }
-        
-        .add-button {
-            background-color: var(--primary-green);
-            color: white;
             border: none;
-            padding: 0 20px;
-            border-radius: 0 8px 8px 0;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .add-button:hover {
-            background-color: #279d7f;
-        }
-        
-        .topics-container {
-            margin-top: 20px;
-        }
-        
-        .topic {
-            margin-bottom: 20px;
-            border: 2px solid var(--navy-blue);
             border-radius: 10px;
-            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
         
-        .topic-header {
-            background-color: rgba(210, 189, 238, 0.3);
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
+        .school-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
         }
         
-        .topic-header:hover {
-            background-color: rgba(210, 189, 238, 0.5);
-        }
-        
-        .topic-title {
-            font-family: 'Poppins', sans-serif;
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: var(--navy-blue);
-        }
-        
-        .topic-icon {
-            transition: transform 0.3s ease;
-        }
-        
-        .topic.active .topic-icon {
-            transform: rotate(180deg);
-        }
-        
-        .topic-content {
-            padding: 20px;
-            background-color: white;
-            display: none;
-        }
-        
-        .topic.active .topic-content {
-            display: block;
-        }
-        
-        .materials-list {
-            list-style-type: none;
-        }
-        
-        .material-item {
-            padding: 10px 15px;
-            margin-bottom: 8px;
-            background-color: rgba(142, 202, 230, 0.1);
+        .metric-card {
+            border-left: 4px solid var(--primary);
             border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
         
-        .material-name {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .nav-pills .nav-link.active {
+            background-color: var(--primary);
         }
         
-        .material-icon {
-            color: var(--navy-blue);
+        .table-responsive {
+            max-height: 600px;
+            border-radius: 8px;
         }
         
-        .material-actions {
-            display: flex;
-            gap: 10px;
+        .progress {
+            height: 8px;
         }
         
-        .material-action {
-            cursor: pointer;
-            padding: 5px;
-            transition: all 0.3s ease;
-        }
-        
-        .material-action:hover {
-            transform: scale(1.2);
-        }
-        
-        .add-material {
-            display: flex;
-            margin-top: 15px;
-        }
-        
-        .add-material input {
-            flex-grow: 1;
-            padding: 10px 15px;
-            border: 2px solid var(--navy-blue);
-            border-radius: 8px 0 0 8px;
-            font-family: 'Nunito', sans-serif;
-            font-size: 1rem;
-        }
-        
-        .add-material input:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(18, 17, 88, 0.2);
-        }
-        
-        .add-material-button {
-            background-color: var(--primary-green);
-            color: white;
-            border: none;
-            padding: 0 15px;
-            border-radius: 0 8px 8px 0;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .add-material-button:hover {
-            background-color: #279d7f;
-        }
-        
-        .export-panel {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 40px;
-        }
-        
-        .export-title {
-            font-size: 1.8rem;
-            color: var(--navy-blue);
-            margin-bottom: 30px;
-        }
-        
-        .export-options {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 30px;
-            margin-bottom: 40px;
-        }
-        
-        .export-option {
-            width: 180px;
-            height: 180px;
-            background: white;
-            border: 2px solid var(--navy-blue);
-            border-radius: 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 6px 6px 0 var(--navy-blue);
-        }
-        
-        .export-option:hover {
-            transform: translate(4px, 4px);
-            box-shadow: 2px 2px 0 var(--navy-blue);
-        }
-        
-        .export-icon {
-            font-size: 3.5rem;
-            margin-bottom: 15px;
-            color: var(--navy-blue);
-        }
-        
-        .export-label {
-            font-weight: 600;
-            color: var(--navy-blue);
-        }
-        
-        .export-button {
-            display: inline-block;
-            background-color: var(--primary-green);
-            color: white;
-            padding: 14px 60px;
-            font-size: 1.2rem;
-            font-weight: 600;
+        .filter-section {
+            background-color: white;
             border-radius: 10px;
-            text-decoration: none;
-            border: 2px solid var(--navy-blue);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border-radius: 10px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary);
+            border-color: var(--secondary);
+        }
+        
+        .highlight {
+            background-color: rgba(26, 79, 114, 0.1);
+        }
+        
+        #loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+        }
+        
+        .spinner {
+            width: 3rem;
+            height: 3rem;
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .badge-success {
+            background-color: #28a745;
+        }
+        
+        .chart-container {
             position: relative;
-            transition: all 0.3s ease;
-            box-shadow: 6px 6px 0 var(--navy-blue);
-        }
-        
-        .export-button:hover {
-            transform: translate(4px, 4px);
-            box-shadow: 2px 2px 0 var(--navy-blue);
-        }
-        
-        .ghibli-decoration {
-            position: absolute;
-            z-index: -1;
-            opacity: 0.08;
-            font-size: 8rem;
-        }
-        
-        .decoration-1 {
-            top: 20px;
-            left: 5%;
-            color: var(--ghibli-green);
-        }
-        
-        .decoration-2 {
-            bottom: 10%;
-            right: 8%;
-            color: var(--ghibli-blue);
-            transform: rotate(15deg);
-        }
-        
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2rem;
-            }
-            
-            .subtitle {
-                font-size: 1.1rem;
-            }
-            
-            .panel {
-                padding: 20px;
-            }
-            
-            .panel-title {
-                font-size: 1.5rem;
-            }
-            
-            .export-option {
-                width: 140px;
-                height: 140px;
-            }
-            
-            .export-icon {
-                font-size: 2.5rem;
-            }
-            
-            .container {
-                padding: 0 15px;
-            }
-            
-            .notes-actions {
-                flex-direction: column;
-            }
+            height: 250px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="ghibli-decoration decoration-1">
-                <i class="fas fa-cloud"></i>
-            </div>
-            <div class="ghibli-decoration decoration-2">
-                <i class="fas fa-leaf"></i>
-            </div>
-            
-            <div class="logo">
-                <i class="fas fa-tasks"></i>
-            </div>
-            <h1>Controle de Estudos</h1>
-            <p class="subtitle">Organize suas tarefas, anotações, tópicos e materiais em um único lugar</p>
-            
-            <div class="welcome-message">
-                <p>Olá, <span class="highlight">Gaby</span>! Vamos organizar sua sessão de estudos?</p>
-                <a href="#" class="cta-button">Começar agora <i class="fas fa-arrow-right"></i></a>
-                
-                <div class="ghibli-element" style="position: absolute; bottom: -20px; right: -20px; opacity: 0.2; font-size: 8rem; z-index: 1; color: var(--ghibli-green); transform: rotate(-15deg);">
-                    <i class="fas fa-book"></i>
-                </div>
+    <!-- Header -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-building"></i> Sistema Escolas TO
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">Visão Geral</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Escolas</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Relatórios</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Comparativos</a>
+                    </li>
+                </ul>
+                <form class="d-flex">
+                    <input class="form-control me-2" type="search" placeholder="Buscar escola..." aria-label="Search" id="searchInput">
+                    <button class="btn btn-light" type="button" id="searchButton"><i class="bi bi-search"></i></button>
+                </form>
             </div>
         </div>
-        
-        <div class="dashboard">
-            <!-- Painel de Anotações -->
-            <div class="panel">
-                <div class="panel-header">
-                    <h2 class="panel-title">Anotações</h2>
-                    <div class="panel-icon">
-                        <i class="fas fa-pencil-alt"></i>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Sidebar de Filtros -->
+            <div class="col-lg-3">
+                <div class="filter-section p-3 mb-4">
+                    <h5 class="mb-3"><i class="bi bi-funnel"></i> Filtros</h5>
+                    <div class="mb-3">
+                        <label class="form-label">SRE (Regional)</label>
+                        <select class="form-select" id="sreFilter">
+                            <option value="">Todas as Regionais</option>
+                        </select>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Município</label>
+                        <select class="form-select" id="municipioFilter">
+                            <option value="">Todos os municípios</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Etapa de Ensino</label>
+                        <select class="form-select" id="etapaFilter">
+                            <option value="">Todas as etapas</option>
+                            <option value="EM">Ensino Médio</option>
+                            <option value="AF">Anos Finais</option>
+                            <option value="AI">Anos Iniciais</option>
+                            <option value="AF/EM">Anos Finais e EM</option>
+                            <option value="AI/AF/EM">Todas as etapas</option>
+                            <option value="ESP">Educação Especial</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">IDEB 2023 (Mínimo: <span id="idebValue">0.0</span>)</label>
+                        <input type="range" class="form-range" min="0" max="10" step="0.1" id="idebFilter" value="0">
+                    </div>
+                    <button class="btn btn-primary w-100" id="applyFilters">Aplicar Filtros</button>
+                    <button class="btn btn-outline-secondary w-100 mt-2" id="resetFilters">Limpar Filtros</button>
                 </div>
-                <div class="notes-container">
-                    <textarea class="note-editor" placeholder="Comece a escrever suas anotações aqui...">- Matemática: Revisar equações de segundo grau
-- História: Pesquisar sobre Revolução Francesa
-- Química: Estudar tabela periódica</textarea>
-                    <div class="notes-actions">
-                        <button class="notes-button save-button">
-                            <i class="fas fa-save"></i> Salvar Anotações
-                        </button>
-                        <button class="notes-button clear-button">
-                            <i class="fas fa-trash"></i> Limpar Tudo
-                        </button>
+
+                <!-- Cartão de Métricas Gerais -->
+                <div class="stats-card p-3 mb-4">
+                    <h5 class="text-white"><i class="bi bi-graph-up"></i> Métricas Estaduais</h5>
+                    <div class="metric-card p-3 mb-3 bg-light bg-opacity-10 text-white">
+                        <h6>IDEB Médio - Anos Finais (2023)</h6>
+                        <h3 id="avgIdebAF">0.0</h3>
+                        <div class="progress bg-dark bg-opacity-25">
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="metric-card p-3 mb-3 bg-light bg-opacity-10 text-white">
+                        <h6>IDEB Médio - Ensino Médio (2023)</h6>
+                        <h3 id="avgIdebEM">0.0</h3>
+                        <div class="progress bg-dark bg-opacity-25">
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="metric-card p-3 bg-light bg-opacity-10 text-white">
+                        <h6>Total de Escolas</h6>
+                        <h3 id="totalSchools">0</h3>
                     </div>
                 </div>
             </div>
-            
-            <!-- Painel de Checklist -->
-            <div class="panel">
-                <div class="panel-header">
-                    <h2 class="panel-title">Checklist de Tarefas</h2>
-                    <div class="panel-icon">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                </div>
-                <div class="checklist">
-                    <div class="checklist-item">
-                        <div class="custom-checkbox checked"></div>
-                        <div class="checklist-text completed">Revisar resumos de biologia</div>
-                        <div class="delete-item"><i class="fas fa-times"></i></div>
-                    </div>
-                    <div class="checklist-item">
-                        <div class="custom-checkbox"></div>
-                        <div class="checklist-text">Resolver exercícios de matemática</div>
-                        <div class="delete-item"><i class="fas fa-times"></i></div>
-                    </div>
-                    <div class="checklist-item">
-                        <div class="custom-checkbox"></div>
-                        <div class="checklist-text">Assistir vídeo-aula de física</div>
-                        <div class="delete-item"><i class="fas fa-times"></i></div>
-                    </div>
-                    <div class="checklist-item">
-                        <div class="custom-checkbox checked"></div>
-                        <div class="checklist-text completed">Fazer mapa mental de história</div>
-                        <div class="delete-item"><i class="fas fa-times"></i></div>
-                    </div>
-                    <div class="add-item">
-                        <input type="text" placeholder="Adicionar nova tarefa...">
-                        <button class="add-button"><i class="fas fa-plus"></i></button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Painel de Tópicos e Materiais -->
-            <div class="panel">
-                <div class="panel-header">
-                    <h2 class="panel-title">Tópicos e Materiais</h2>
-                    <div class="panel-icon">
-                        <i class="fas fa-folder-open"></i>
-                    </div>
-                </div>
-                <div class="topics-container">
-                    <div class="topic active">
-                        <div class="topic-header">
-                            <div class="topic-title">Matemática</div>
-                            <div class="topic-icon"><i class="fas fa-chevron-down"></i></div>
-                        </div>
-                        <div class="topic-content">
-                            <ul class="materials-list">
-                                <li class="material-item">
-                                    <div class="material-name">
-                                        <i class="fas fa-file-pdf material-icon"></i>
-                                        <span>Resumo - Álgebra Linear</span>
-                                    </div>
-                                    <div class="material-actions">
-                                        <div class="material-action"><i class="fas fa-download" title="Baixar"></i></div>
-                                        <div class="material-action"><i class="fas fa-trash" title="Excluir"></i></div>
-                                    </div>
-                                </li>
-                                <li class="material-item">
-                                    <div class="material-name">
-                                        <i class="fas fa-file-alt material-icon"></i>
-                                        <span>Lista de Exercícios</span>
-                                    </div>
-                                    <div class="material-actions">
-                                        <div class="material-action"><i class="fas fa-download" title="Baixar"></i></div>
-                                        <div class="material-action"><i class="fas fa-trash" title="Excluir"></i></div>
-                                    </div>
-                                </li>
-                                <li class="material-item">
-                                    <div class="material-name">
-                                        <i class="fas fa-link material-icon"></i>
-                                        <span>Link útil: Khan Academy</span>
-                                    </div>
-                                    <div class="material-actions">
-                                        <div class="material-action"><i class="fas fa-external-link-alt" title="Abrir"></i></div>
-                                        <div class="material-action"><i class="fas fa-trash" title="Excluir"></i></div>
-                                    </div>
-                                </li>
-                            </ul>
-                            <div class="add-material">
-                                <input type="text" placeholder="Adicionar novo material...">
-                                <button class="add-material-button"><i class="fas fa-plus"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="topic">
-                        <div class="topic-header">
-                            <div class="topic-title">História</div>
-                            <div class="topic-icon"><i class="fas fa-chevron-down"></i></div>
-                        </div>
-                        <div class="topic-content">
-                            <ul class="materials-list">
-                                <li class="material-item">
-                                    <div class="material-name">
-                                        <i class="fas fa-file-pdf material-icon"></i>
-                                        <span>Linha do Tempo - Idade Média</span>
-                                    </div>
-                                    <div class="material-actions">
-                                        <div class="material-action"><i class="fas fa-download" title="Baixar"></i></div>
-                                        <div class="material-action"><i class="fas fa-trash" title="Excluir"></i></div>
-                                    </div>
-                                </li>
-                            </ul>
-                            <div class="add-material">
-                                <input type="text" placeholder="Adicionar novo material...">
-                                <button class="add-material-button"><i class="fas fa-plus"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="topic">
-                        <div class="topic-header">
-                            <div class="topic-title">Química</div>
-                            <div class="topic-icon"><i class="fas fa-chevron-down"></i></div>
-                        </div>
-                        <div class="topic-content">
-                            <ul class="materials-list">
-                                <li class="material-item">
-                                    <div class="material-name">
-                                        <i class="fas fa-file-image material-icon"></i>
-                                        <span>Tabela Periódica Interativa</span>
-                                    </div>
-                                    <div class="material-actions">
-                                        <div class="material-action"><i class="fas fa-download" title="Baixar"></i></div>
-                                        <div class="material-action"><i class="fas fa-trash" title="Excluir"></i></div>
-                                    </div>
-                                </li>
-                            </ul>
-                            <div class="add-material">
-                                <input type="text" placeholder="Adicionar novo material...">
-                                <button class="add-material-button"><i class="fas fa-plus"></i></button>
-                            </div>
+
+            <!-- Conteúdo Principal -->
+            <div class="col-lg-9">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Escolas do Estado do Tocantins</h2>
+                    <div>
+                        <button class="btn btn-outline-primary me-2" id="exportButton"><i class="bi bi-download"></i> Exportar</button>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-primary" id="tableViewButton"><i class="bi bi-table"></i> Tabela</button>
+                            <button type="button" class="btn btn-outline-primary" id="cardsViewButton"><i class="bi bi-grid"></i> Cards</button>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Painel de Exportação -->
-            <div class="panel export-panel">
-                <h2 class="export-title">Exportar Materiais de Estudo</h2>
-                <div class="export-options">
-                    <div class="export-option">
-                        <i class="fas fa-file-pdf export-icon"></i>
-                        <div class="export-label">Exportar para PDF</div>
-                    </div>
-                    <div class="export-option">
-                        <i class="fas fa-file-word export-icon"></i>
-                        <div class="export-label">Exportar para Word</div>
-                    </div>
-                    <div class="export-option">
-                        <i class="fas fa-file-excel export-icon"></i>
-                        <div class="export-label">Exportar para Excel</div>
-                    </div>
-                    <div class="export-option">
-                        <i class="fas fa-file-image export-icon"></i>
-                        <div class="export-label">Exportar Imagens</div>
+
+                <!-- Indicadores de Carregamento -->
+                <div id="loading" class="d-none">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                        <p class="mt-2">Carregando dados das escolas...</p>
                     </div>
                 </div>
-                <button class="export-button">Exportar Tudo <i class="fas fa-download"></i></button>
+
+                <!-- Mensagem de erro -->
+                <div id="errorMessage" class="alert alert-danger d-none" role="alert">
+                    Ocorreu um erro ao carregar os dados. Tente novamente mais tarde.
+                </div>
+
+                <!-- Visualização em Tabela -->
+                <div id="tableView">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nome da Escola</th>
+                                    <th>Município</th>
+                                    <th>SRE</th>
+                                    <th>Etapa</th>
+                                    <th>IDEB 2023</th>
+                                    <th>Meta 2024</th>
+                                    <th>Telefone</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="schoolsTableBody">
+                                <!-- Os dados serão preenchidos via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center" id="pagination">
+                            <!-- A paginação será gerada via JavaScript -->
+                        </ul>
+                    </nav>
+                </div>
+
+                <!-- Visualização em Cards -->
+                <div id="cardsView" class="d-none">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4" id="schoolsCardsContainer">
+                        <!-- Os cards serão preenchidos via JavaScript -->
+                    </div>
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center" id="cardsPagination">
+                            <!-- A paginação será gerada via JavaScript -->
+                        </ul>
+                    </nav>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Modal para Detalhes da Escola -->
+    <div class="modal fade" id="schoolDetailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Detalhes da Escola</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4 id="modalSchoolName">Nome da Escola</h4>
+                            <p id="modalSchoolLocation">Município - SRE</p>
+                            <p><strong>Etapa:</strong> <span id="modalSchoolStage"></span></p>
+                            <p><strong>Código:</strong> <span id="modalSchoolCode"></span></p>
+                            <p><strong>Telefone:</strong> <span id="modalSchoolPhone"></span></p>
+                            <p><strong>Diretor(a):</strong> <span id="modalSchoolDirector"></span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Indicadores IDEB</h5>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Ano</th>
+                                        <th>Resultado</th>
+                                        <th>Meta</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>2023</td>
+                                        <td id="modalIdeb2023">-</td>
+                                        <td id="modalMeta2024">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2025 (Meta)</td>
+                                        <td colspan="2" id="modalMeta2025">-</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <h5>Evolução do IDEB</h5>
+                        <div class="chart-container">
+                            <canvas id="idebHistoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-primary">Gerar Relatório</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Funções para o Checklist
-        document.querySelectorAll('.custom-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('click', function() {
-                this.classList.toggle('checked');
-                const text = this.nextElementSibling;
-                text.classList.toggle('completed');
-            });
-        });
-        
-        document.querySelectorAll('.delete-item').forEach(deleteBtn => {
-            deleteBtn.addEventListener('click', function() {
-                this.closest('.checklist-item').remove();
-            });
-        });
-        
-        document.querySelector('.add-button').addEventListener('click', function() {
-            const input = this.previousElementSibling;
-            const taskText = input.value.trim();
+        // Variáveis globais
+        let allSchools = [];
+        let filteredSchools = [];
+        let currentPage = 1;
+        const schoolsPerPage = 9;
+        let currentView = 'table'; // 'table' or 'cards'
+
+        // URL da API do Google Apps Script (substitua com sua URL real)
+        const API_URL = 'https://script.google.com/macros/s/SEU_SCRIPT_ID/exec';
+
+        // Elementos do DOM
+        const elements = {
+            loading: document.getElementById('loading'),
+            errorMessage: document.getElementById('errorMessage'),
+            tableView: document.getElementById('tableView'),
+            cardsView: document.getElementById('cardsView'),
+            schoolsTableBody: document.getElementById('schoolsTableBody'),
+            schoolsCardsContainer: document.getElementById('schoolsCardsContainer'),
+            pagination: document.getElementById('pagination'),
+            cardsPagination: document.getElementById('cardsPagination'),
+            sreFilter: document.getElementById('sreFilter'),
+            municipioFilter: document.getElementById('municipioFilter'),
+            etapaFilter: document.getElementById('etapaFilter'),
+            idebFilter: document.getElementById('idebFilter'),
+            idebValue: document.getElementById('idebValue'),
+            applyFilters: document.getElementById('applyFilters'),
+            resetFilters: document.getElementById('resetFilters'),
+            searchInput: document.getElementById('searchInput'),
+            searchButton: document.getElementById('searchButton'),
+            tableViewButton: document.getElementById('tableViewButton'),
+            cardsViewButton: document.getElementById('cardsViewButton'),
+            exportButton: document.getElementById('exportButton'),
+            totalSchools: document.getElementById('totalSchools'),
+            avgIdebAF: document.getElementById('avgIdebAF'),
+            avgIdebEM: document.getElementById('avgIdebEM')
+        };
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar event listeners
+            setupEventListeners();
             
-            if (taskText) {
-                const checklist = document.querySelector('.checklist');
-                const newItem = document.createElement('div');
-                newItem.className = 'checklist-item';
-                newItem.innerHTML = `
-                    <div class="custom-checkbox"></div>
-                    <div class="checklist-text">${taskText}</div>
-                    <div class="delete-item"><i class="fas fa-times"></i></div>
-                `;
-                
-                const deleteBtn = newItem.querySelector('.delete-item');
-                deleteBtn.addEventListener('click', function() {
-                    this.closest('.checklist-item').remove();
-                });
-                
-                const checkbox = newItem.querySelector('.custom-checkbox');
-                checkbox.addEventListener('click', function() {
-                    this.classList.toggle('checked');
-                    const text = this.nextElementSibling;
-                    text.classList.toggle('completed');
-                });
-                
-                checklist.insertBefore(newItem, this.parentElement);
-                input.value = '';
-            }
+            // Carregar dados
+            loadSchoolData();
         });
-        
-        // Funções para os Tópicos
-        document.querySelectorAll('.topic-header').forEach(header => {
-            header.addEventListener('click', function() {
-                const topic = this.parentElement;
-                topic.classList.toggle('active');
+
+        // Configurar event listeners
+        function setupEventListeners() {
+            elements.idebFilter.addEventListener('input', function() {
+                elements.idebValue.textContent = this.value;
             });
-        });
-        
-        // Funções para Anotações
-        document.querySelector('.save-button').addEventListener('click', function() {
-            alert('Anotações salvas com sucesso!');
-        });
-        
-        document.querySelector('.clear-button').addEventListener('click', function() {
-            if (confirm('Tem certeza que deseja limpar todas as anotações?')) {
-                document.querySelector('.note-editor').value = '';
-            }
-        });
-        
-        // Funções de Exportação
-        document.querySelectorAll('.export-option').forEach(option => {
-            option.addEventListener('click', function() {
-                const format = this.querySelector('.export-label').textContent.split(' ')[1];
-                alert(`Iniciando exportação para ${format}...`);
-            });
-        });
-        
-        document.querySelector('.export-button').addEventListener('click', function() {
-            alert('Exportando todos os materiais...');
-        });
-        
-        // Animação para o botão principal
-        const ctaButton = document.querySelector('.cta-button');
-        ctaButton.addEventListener('click', function(e) {
-            e.preventDefault();
+
+            elements.applyFilters.addEventListener('click', applyFilters);
+            elements.resetFilters.addEventListener('click', resetFilters);
             
-            // Animação
-            this.style.transform = "translate(4px, 4px)";
-            this.style.boxShadow = "2px 2px 0 var(--navy-blue)";
-            setTimeout(() => {
-                this.style.transform = "";
-                this.style.boxShadow = "4px 4px 0 var(--navy-blue)";
-            }, 200);
-            
-            // Scroll para o dashboard
-            document.querySelector('.dashboard').scrollIntoView({ 
-                behavior: 'smooth' 
-            });
-        });
-        
-        // Animação para os painéis ao aparecerem na tela
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = 1;
-                    entry.target.style.transform = "translate(0, 0)";
+            elements.searchInput.addEventListener('keyup', function(event) {
+                if (event.key === 'Enter') {
+                    applyFilters();
                 }
             });
-        }, { threshold: 0.1 });
-        
-        document.querySelectorAll('.panel').forEach(panel => {
-            panel.style.opacity = 0;
-            panel.style.transform = "translate(0, 20px)";
-            panel.style.transition = "opacity 0.5s ease, transform 0.5s ease";
-            observer.observe(panel);
-        });
+            
+            elements.searchButton.addEventListener('click', applyFilters);
+            
+            elements.tableViewButton.addEventListener('click', function() {
+                switchView('table');
+            });
+            
+            elements.cardsViewButton.addEventListener('click', function() {
+                switchView('cards');
+            });
+            
+            elements.exportButton.addEventListener('click', exportData);
+        }
+
+        // Carregar dados da API
+        async function loadSchoolData() {
+            showLoading();
+            hideError();
+            
+            try {
+                // Em produção, substituir pela chamada real à API
+                // const response = await fetch(API_URL);
+                // const data = await response.json();
+                
+                // Simulação de dados (remover em produção)
+                const data = await simulateApiCall();
+                
+                allSchools = data;
+                filteredSchools = [...allSchools];
+                
+                updateFilterOptions();
+                updateStats();
+                applyFilters();
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                showError();
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Simular chamada à API (remover em produção)
+        async function simulateApiCall() {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    // Gerar dados de exemplo baseados na estrutura do Excel
+                    const mockData = [];
+                    const municipios = ['Ananás', 'Aragominas', 'Araguanã', 'Babaçulândia', 'Barra do Ouro', 
+                                       'Campos Lindos', 'Carmolândia', 'Filadélfia', 'Goiatins', 'Muricilândia',
+                                       'Nova Olinda', 'Piraquê', 'Riachinho', 'Santa Fé do Araguaia', 'Wanderlândia', 'Xambioá', 'Araguaína'];
+                    
+                    const sres = ['ARAGUAINA', 'PALMAS', 'GURUPI', 'ARAGUATINS'];
+                    
+                    for (let i = 1; i <= 77; i++) {
+                        const municipio = municipios[Math.floor(Math.random() * municipios.length)];
+                        const sre = sres[Math.floor(Math.random() * sres.length)];
+                        const etapas = ['EM', 'AF', 'AI', 'AF/EM', 'AI/AF/EM', 'ESP'];
+                        const etapa = etapas[Math.floor(Math.random() * etapas.length)];
+                        
+                        const ideb = (Math.random() * 4 + 2).toFixed(1);
+                        const meta = (parseFloat(ideb) + 0.2).toFixed(1);
+                        
+                        mockData.push({
+                            id: i,
+                            name: `Escola ${i} - ${municipio}`,
+                            municipality: municipio,
+                            sre: sre,
+                            stage: etapa,
+                            ideb2023: ideb,
+                            meta2024: meta,
+                            phone: `(63) 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+                            director: `Diretor ${i}`,
+                            code: `1700${Math.floor(1000 + Math.random() * 9000)}`
+                        });
+                    }
+                    
+                    resolve(mockData);
+                }, 1500);
+            });
+        }
+
+        // Atualizar opções dos filtros
+        function updateFilterOptions() {
+            // SRE
+            const sres = [...new Set(allSchools.map(school => school.sre))];
+            elements.sreFilter.innerHTML = '<option value="">Todas as Regionais</option>';
+            sres.forEach(sre => {
+                elements.sreFilter.innerHTML += `<option value="${sre}">${sre}</option>`;
+            });
+            
+            // Municípios
+            const municipios = [...new Set(allSchools.map(school => school.municipality))];
+            elements.municipioFilter.innerHTML = '<option value="">Todos os municípios</option>';
+            municipios.forEach(municipio => {
+                elements.municipioFilter.innerHTML += `<option value="${municipio}">${municipio}</option>`;
+            });
+        }
+
+        // Atualizar estatísticas
+        function updateStats() {
+            elements.totalSchools.textContent = allSchools.length;
+            
+            // Calcular médias de IDEB
+            const escolasAF = allSchools.filter(school => school.stage.includes('AF'));
+            const escolasEM = allSchools.filter(school => school.stage.includes('EM'));
+            
+            const avgAF = escolasAF.length > 0 ? 
+                (escolasAF.reduce((sum, school) => sum + parseFloat(school.ideb2023), 0) / escolasAF.length).toFixed(1) : '0.0';
+            
+            const avgEM = escolasEM.length > 0 ? 
+                (escolasEM.reduce((sum, school) => sum + parseFloat(school.ideb2023), 0) / escolasEM.length).toFixed(1) : '0.0';
+            
+            elements.avgIdebAF.textContent = avgAF;
+            elements.avgIdebEM.textContent = avgEM;
+            
+            // Atualizar barras de progresso
+            document.querySelectorAll('.progress-bar')[0].style.width = `${avgAF * 10}%`;
+            document.querySelectorAll('.progress-bar')[1].style.width = `${avgEM * 10}%`;
+        }
+
+        // Aplicar filtros
+        function applyFilters() {
+            const sre = elements.sreFilter.value;
+            const municipio = elements.municipioFilter.value;
+            const etapa = elements.etapaFilter.value;
+            const idebMin = parseFloat(elements.idebFilter.value);
+            const searchTerm = elements.searchInput.value.toLowerCase();
+            
+            filteredSchools = allSchools.filter(school => {
+                return (
+                    (sre === '' || school.sre === sre) &&
+                    (municipio === '' || school.municipality === municipio) &&
+                    (etapa === '' || school.stage === etapa) &&
+                    (isNaN(idebMin) || parseFloat(school.ideb2023) >= idebMin) &&
+                    (searchTerm === '' || 
+                     school.name.toLowerCase().includes(searchTerm) ||
+                     school.municipality.toLowerCase().includes(searchTerm) ||
+                     school.director.toLowerCase().includes(searchTerm))
+                );
+            });
+            
+            currentPage = 1;
+            renderSchools();
+        }
+
+        // Resetar filtros
+        function resetFilters() {
+            elements.sreFilter.value = '';
+            elements.municipioFilter.value = '';
+            elements.etapaFilter.value = '';
+            elements.idebFilter.value = '0';
+            elements.idebValue.textContent = '0.0';
+            elements.searchInput.value = '';
+            
+            filteredSchools = [...allSchools];
+            currentPage = 1;
+            renderSchools();
+        }
+
+        // Alternar entre visualizações
+        function switchView(view) {
+            currentView = view;
+            
+            if (view === 'table') {
+                elements.tableView.classList.remove('d-none');
+                elements.cardsView.classList.add('d-none');
+                elements.tableViewButton.classList.add('btn-primary');
+                elements.tableViewButton.classList.remove('btn-outline-primary');
+                elements.cardsViewButton.classList.remove('btn-primary');
+                elements.cardsViewButton.classList.add('btn-outline-primary');
+            } else {
+                elements.tableView.classList.add('d-none');
+                elements.cardsView.classList.remove('d-none');
+                elements.tableViewButton.classList.remove('btn-primary');
+                elements.tableViewButton.classList.add('btn-outline-primary');
+                elements.cardsViewButton.classList.add('btn-primary');
+                elements.cardsViewButton.classList.remove('btn-outline-primary');
+            }
+            
+            renderSchools();
+        }
+
+        // Renderizar escolas
+        function renderSchools() {
+            if (currentView === 'table') {
+                renderTable();
+            } else {
+                renderCards();
+            }
+            
+            renderPagination();
+        }
+
+        // Renderizar tabela
+        function renderTable() {
+            const startIndex = (currentPage - 1) * schoolsPerPage;
+            const endIndex = startIndex + schoolsPerPage;
+            const pageSchools = filteredSchools.slice(startIndex, endIndex);
+            
+            elements.schoolsTableBody.innerHTML = '';
+            
+            if (pageSchools.length === 0) {
+                elements.schoolsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center">Nenhuma escola encontrada com os filtros aplicados.</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            pageSchools.forEach(school => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${school.name}</td>
+                    <td>${school.municipality}</td>
+                    <td>${school.sre}</td>
+                    <td>${school.stage}</td>
+                    <td>${school.ideb2023}</td>
+                    <td>${school.meta2024}</td>
+                    <td>${school.phone}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary view-details" data-id="${school.id}">Detalhes</button>
+                    </td>
+                `;
+                elements.schoolsTableBody.appendChild(row);
+            });
+            
+            // Adicionar event listeners aos botões de detalhes
+            document.querySelectorAll('.view-details').forEach(button => {
+                button.addEventListener('click', function() {
+                    const schoolId = this.getAttribute('data-id');
+                    showSchoolDetails(schoolId);
+                });
+            });
+        }
+
+        // Renderizar cards
+        function renderCards() {
+            const startIndex = (currentPage - 1) * schoolsPerPage;
+            const endIndex = startIndex + schoolsPerPage;
+            const pageSchools = filteredSchools.slice(startIndex, endIndex);
+            
+            elements.schoolsCardsContainer.innerHTML = '';
+            
+            if (pageSchools.length === 0) {
+                elements.schoolsCardsContainer.innerHTML = `
+                    <div class="col-12 text-center">
+                        <p>Nenhuma escola encontrada com os filtros aplicados.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            pageSchools.forEach(school => {
+                const col = document.createElement('div');
+                col.className = 'col';
+                col.innerHTML = `
+                    <div class="card school-card h-100">
+                        <div class="card-header">
+                            <h5 class="card-title">${school.name}</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">${school.municipality} - ${school.sre}</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Etapa: <strong>${school.stage}</strong></span>
+                                <span>IDEB: <strong>${school.ideb2023}</strong></span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span>Meta 2024: <strong>${school.meta2024}</strong></span>
+                                <span class="badge bg-success">Ativa</span>
+                            </div>
+                            <p class="card-text"><i class="bi bi-telephone"></i> ${school.phone}</p>
+                            <p class="card-text"><i class="bi bi-person"></i> ${school.director}</p>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-sm btn-primary w-100 view-details" data-id="${school.id}">Ver detalhes</button>
+                        </div>
+                    </div>
+                `;
+                elements.schoolsCardsContainer.appendChild(col);
+            });
+            
+            // Adicionar event listeners aos botões de detalhes
+            document.querySelectorAll('.view-details').forEach(button => {
+                button.addEventListener('click', function() {
+                    const schoolId = this.getAttribute('data-id');
+                    showSchoolDetails(schoolId);
+                });
+            });
+        }
+
+        // Renderizar paginação
+        function renderPagination() {
+            const totalPages = Math.ceil(filteredSchools.length / schoolsPerPage);
+            const paginationHTML = generatePaginationHTML(totalPages, currentPage);
+            
+            elements.pagination.innerHTML = paginationHTML;
+            elements.cardsPagination.innerHTML = paginationHTML;
+            
+            // Adicionar event listeners aos botões de paginação
+            document.querySelectorAll('.page-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    if (this.parentElement.classList.contains('disabled')) {
+                        return;
+                    }
+                    
+                    if (this.getAttribute('data-page') === 'prev') {
+                        if (currentPage > 1) {
+                            currentPage--;
+                            renderSchools();
+                        }
+                    } else if (this.getAttribute('data-page') === 'next') {
+                        if (currentPage < totalPages) {
+                            currentPage++;
+                            renderSchools();
+                        }
+                    } else {
+                        currentPage = parseInt(this.getAttribute('data-page'));
+                        renderSchools();
+                    }
+                });
+            });
+        }
+
+        // Gerar HTML da paginação
+        function generatePaginationHTML(totalPages, currentPage) {
+            if (totalPages <= 1) return '';
+            
+            let html = `
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="prev">Anterior</a>
+                </li>
+            `;
+            
+            for (let i = 1; i <= totalPages; i++) {
+                html += `
+                    <li class="page-item ${i === currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
+                    </li>
+                `;
+            }
+            
+            html += `
+                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="next">Próxima</a>
+                </li>
+            `;
+            
+            return html;
+        }
+
+        // Mostrar detalhes da escola
+        function showSchoolDetails(schoolId) {
+            const school = allSchools.find(s => s.id == schoolId);
+            
+            if (!school) return;
+            
+            document.getElementById('modalSchoolName').textContent = school.name;
+            document.getElementById('modalSchoolLocation').textContent = `${school.municipality} - ${school.sre}`;
+            document.getElementById('modalSchoolStage').textContent = school.stage;
+            document.getElementById('modalSchoolCode').textContent = school.code;
+            document.getElementById('modalSchoolPhone').textContent = school.phone;
+            document.getElementById('modalSchoolDirector').textContent = school.director;
+            document.getElementById('modalIdeb2023').textContent = school.ideb2023;
+            document.getElementById('modalMeta2024').textContent = school.meta2024;
+            document.getElementById('modalMeta2025').textContent = (parseFloat(school.meta2024) + 0.2).toFixed(1);
+            
+            // Gerar gráfico de histórico (simulado)
+            const ctx = document.getElementById('idebHistoryChart').getContext('2d');
+            
+            // Destruir gráfico anterior se existir
+            if (window.idebChart) {
+                window.idebChart.destroy();
+            }
+            
+            // Gerar dados históricos simulados
+            const historyData = [
+                (parseFloat(school.ideb2023) - 0.4).toFixed(1),
+                (parseFloat(school.ideb2023) - 0.2).toFixed(1),
+                parseFloat(school.ideb2023)
+            ];
+            
+            window.idebChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['2021', '2022', '2023'],
+                    datasets: [{
+                        label: 'Evolução do IDEB',
+                        data: historyData,
+                        borderColor: '#1a4f72',
+                        backgroundColor: 'rgba(26, 79, 114, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            suggestedMin: Math.max(0, Math.min(...historyData) - 0.5),
+                            suggestedMax: Math.max(...historyData) + 0.5
+                        }
+                    }
+                }
+            });
+            
+            // Mostrar modal
+            new bootstrap.Modal(document.getElementById('schoolDetailModal')).show();
+        }
+
+        // Exportar dados
+        function exportData() {
+            // Em produção, implementar a lógica de exportação
+            alert('Funcionalidade de exportação será implementada aqui.');
+        }
+
+        // Mostrar loading
+        function showLoading() {
+            elements.loading.classList.remove('d-none');
+            elements.tableView.classList.add('d-none');
+            elements.cardsView.classList.add('d-none');
+        }
+
+        // Esconder loading
+        function hideLoading() {
+            elements.loading.classList.add('d-none');
+        }
+
+        // Mostrar erro
+        function showError() {
+            elements.errorMessage.classList.remove('d-none');
+        }
+
+        // Esconder erro
+        function hideError() {
+            elements.errorMessage.classList.add('d-none');
+        }
     </script>
 </body>
 </html>
