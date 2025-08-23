@@ -1,0 +1,20 @@
+{
+  "produtos": [
+    {
+      "id": 1,
+      "nome": "Produto A",
+      "preco": 29.90,
+      "descricao": "Descrição do produto A"
+    },
+    {
+      "id": 2,
+      "nome": "Produto B", 
+      "preco": 49.90,
+      "descricao": "Descrição do produto B"
+    }
+  ],
+  "configuracoes": {
+    "titulo": "Meu Site",
+    "corTema": "#007bff"
+  }
+}
