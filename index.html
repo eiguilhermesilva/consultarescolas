@@ -3,15 +3,397 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Site com JSON Database</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Google Sheets como Banco de Dados</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c 0%, #b21f1f 50%, #fdbb2d 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        .instructions {
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .instructions h2 {
+            color: #1a2a6c;
+            margin-bottom: 15px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 10px;
+        }
+        
+        .instructions code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        
+        .controls {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .sheet-input {
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        .action-btn {
+            background: #1a2a6c;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+        }
+        
+        .action-btn:hover {
+            background: #b21f1f;
+        }
+        
+        .data-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-header {
+            background: #1a2a6c;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        .card-field {
+            margin-bottom: 12px;
+            display: flex;
+            border-bottom: 1px dashed #eee;
+            padding-bottom: 10px;
+        }
+        
+        .field-label {
+            font-weight: bold;
+            min-width: 120px;
+            color: #1a2a6c;
+        }
+        
+        .field-value {
+            flex: 1;
+        }
+        
+        .stats {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: space-around;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #1a2a6c;
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            color: #666;
+        }
+        
+        footer {
+            text-align: center;
+            color: white;
+            padding: 20px;
+            margin-top: 30px;
+            opacity: 0.8;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.2rem;
+        }
+        
+        .error {
+            text-align: center;
+            padding: 20px;
+            background: #ffebee;
+            color: #b71c1c;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .data-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .sheet-input {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div id="app">
-        <h1 id="titulo-site">Carregando...</h1>
-        <div id="produtos-container" class="produtos-grid"></div>
+    <div class="container">
+        <header>
+            <h1>Google Sheets como Banco de Dados</h1>
+            <p class="subtitle">Use uma planilha do Google Sheets para alimentar seu site diretamente, sem necessidade de conversão para JSON manual</p>
+        </header>
+        
+        <div class="instructions">
+            <h2>Como usar:</h2>
+            <ol>
+                <li>Crie uma planilha no Google Sheets com seus dados</li>
+                <li>Compartilhe a planilha publicamente (Arquivo > Compartilhar > Tornar público)</li>
+                <li>Obtenha o ID da planilha da URL (ex: <code>https://docs.google.com/spreadsheets/d/SEU_ID_AQUI/edit#gid=0</code>)</li>
+                <li>Cole o ID no campo abaixo e clique em "Carregar Dados"</li>
+            </ol>
+            <p><strong>Exemplo de URL:</strong> https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit#gid=0</p>
+            <p><strong>ID do exemplo:</strong> 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms</p>
+        </div>
+        
+        <div class="controls">
+            <input type="text" class="sheet-input" id="sheet-id" placeholder="Cole o ID da sua planilha do Google Sheets aqui">
+            <button class="action-btn" id="load-btn">Carregar Dados</button>
+        </div>
+        
+        <div id="error-message" class="error" style="display: none;"></div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="total-items">0</div>
+                <div class="stat-label">Total de Itens</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="last-update">-</div>
+                <div class="stat-label">Última Atualização</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="status">🚀</div>
+                <div class="stat-label">Status</div>
+            </div>
+        </div>
+        
+        <div class="data-container" id="data-container">
+            <div class="loading">Insira o ID de uma planilha e clique em "Carregar Dados"</div>
+        </div>
+        
+        <footer>
+            <p>GitHub Pages + Google Sheets Integration Example</p>
+        </footer>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        // Elementos da interface
+        const sheetIdInput = document.getElementById('sheet-id');
+        const loadBtn = document.getElementById('load-btn');
+        const dataContainer = document.getElementById('data-container');
+        const errorMessage = document.getElementById('error-message');
+        const totalItems = document.getElementById('total-items');
+        const lastUpdate = document.getElementById('last-update');
+        const statusIndicator = document.getElementById('status');
+        
+        // URL de exemplo para teste (planilha pública do Google Sheets)
+        sheetIdInput.value = '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms';
+        
+        // Função para carregar dados do Google Sheets
+        async function loadSheetData(sheetId) {
+            try {
+                // Mostrar estado de carregamento
+                dataContainer.innerHTML = '<div class="loading">Carregando dados da planilha...</div>';
+                errorMessage.style.display = 'none';
+                statusIndicator.textContent = '⏳';
+                
+                // Fazer requisição para a API do Google Sheets
+                const response = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`);
+                
+                if (!response.ok) {
+                    throw new Error('Planilha não encontrada. Verifique o ID.');
+                }
+                
+                const text = await response.text();
+                // A resposta vem com um prefixo, precisamos removê-lo
+                const json = JSON.parse(text.substring(47).slice(0, -2));
+                
+                // Processar os dados
+                processSheetData(json);
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                errorMessage.textContent = `Erro: ${error.message || 'Falha ao carregar dados'}`;
+                errorMessage.style.display = 'block';
+                statusIndicator.textContent = '❌';
+            }
+        }
+        
+        // Função para processar os dados da planilha
+        function processSheetData(data) {
+            if (!data.table || !data.table.cols || !data.table.rows) {
+                throw new Error('Formato de dados inválido da planilha');
+            }
+            
+            // Extrair cabeçalhos das colunas
+            const headers = data.table.cols.map(col => col.label);
+            
+            // Extrair linhas de dados
+            const rows = data.table.rows.map(row => {
+                const item = {};
+                row.c.forEach((cell, index) => {
+                    item[headers[index]] = cell ? cell.v : '';
+                });
+                return item;
+            });
+            
+            // Atualizar estatísticas
+            totalItems.textContent = rows.length;
+            lastUpdate.textContent = new Date().toLocaleTimeString();
+            statusIndicator.textContent = '✅';
+            
+            // Renderizar os dados
+            renderData(rows, headers);
+        }
+        
+        // Função para renderizar os dados na tela
+        function renderData(data, headers) {
+            if (data.length === 0) {
+                dataContainer.innerHTML = '<div class="loading">Nenhum dado encontrado na planilha</div>';
+                return;
+            }
+            
+            dataContainer.innerHTML = '';
+            
+            data.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                
+                // Usar a primeira coluna como título
+                const firstKey = headers[0];
+                const title = item[firstKey] || 'Item sem título';
+                
+                card.innerHTML = `
+                    <div class="card-header">
+                        <h3>${title}</h3>
+                    </div>
+                    <div class="card-body">
+                        ${headers.map((header, index) => 
+                            index > 0 ? `
+                                <div class="card-field">
+                                    <span class="field-label">${header}:</span>
+                                    <span class="field-value">${item[header] || '-'}</span>
+                                </div>
+                            ` : ''
+                        ).join('')}
+                    </div>
+                `;
+                
+                dataContainer.appendChild(card);
+            });
+        }
+        
+        // Event listener para o botão de carregar
+        loadBtn.addEventListener('click', () => {
+            const sheetId = sheetIdInput.value.trim();
+            if (sheetId) {
+                loadSheetData(sheetId);
+            } else {
+                errorMessage.textContent = 'Por favor, insira um ID de planilha válido';
+                errorMessage.style.display = 'block';
+            }
+        });
+        
+        // Carregar dados de exemplo ao iniciar (opcional)
+        // loadSheetData('1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms');
+    </script>
 </body>
 </html>
