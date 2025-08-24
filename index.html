@@ -3,79 +3,125 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dashboard da Planilha — Apresentação</title>
-  <meta name="description" content="Apresentação organizada de uma planilha do Google Sheets com múltiplas abas, paginação, busca, ordenação e exportação."/>
-  <link rel="preconnect" href="https://docs.google.com" />
-  <link rel="preconnect" href="https://spreadsheets.google.com" />
-  <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+  <title>SheetsDB — Consulta Pública (Planilha Oficial)</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+  <link href="styles.css" rel="stylesheet">
+
+  <!-- Chart.js (CDN) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- App config + lógica -->
+  <script defer src="app.js"></script>
 </head>
 <body>
-  <header class="site-header">
-    <div class="brand">
-      <i class="fa-solid fa-table-list" aria-hidden="true"></i>
-      <h1>Relatório da Planilha</h1>
-    </div>
-    <p class="subtitle">Dados atualizados diretamente do Google Sheets (somente leitura)</p>
-  </header>
-
-  <main class="container">
-    <section class="main">
-      <div id="error" class="alert hidden" role="alert" aria-live="assertive"></div>
-
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-value" id="stat-total">0</div>
-          <div class="stat-label">Itens (aba)</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value" id="stat-cols">0</div>
-          <div class="stat-label">Colunas</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value" id="stat-sheet">-</div>
-          <div class="stat-label">Aba atual</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value" id="stat-updated">-</div>
-          <div class="stat-label">Última atualização</div>
-        </div>
+  <div class="container">
+    <header class="site-header">
+      <div class="logo"><i class="fas fa-database"></i></div>
+      <div>
+        <h1>Consultar Escolas — SheetsDB</h1>
+        <p class="subtitle">Visualização organizada da planilha oficial publicada no Google Sheets</p>
       </div>
+    </header>
 
-      <nav class="tabs" id="tabs" aria-label="Abas da planilha"></nav>
+    <!-- NAV -->
+    <nav class="top-nav">
+      <button class="nav-btn" data-route="home"><i class="fas fa-house"></i> Início</button>
+      <div class="nav-divider"></div>
+      <div class="nav-sheets" id="nav-sheets"></div>
+    </nav>
 
-      <div class="tools">
-        <div class="field grow">
-          <label for="search-input" class="visually-hidden">Busca</label>
-          <input id="search-input" class="input-base" placeholder="Buscar na página atual..." disabled />
+    <!-- HOME / CARDS -->
+    <main id="view-home" class="view active">
+      <section>
+        <h2 class="section-title"><i class="fas fa-layer-group"></i> Resumo por Aba</h2>
+        <div id="sheet-cards" class="cards-grid"></div>
+      </section>
+    </main>
+
+    <!-- DATA VIEW -->
+    <main id="view-data" class="view">
+      <section class="sheet-header">
+        <div class="sheet-title">
+          <h2 id="sheet-title" class="section-title"><i class="fas fa-table"></i> <span>-</span></h2>
+          <div class="sub-badge" id="last-update">Atualizado: —</div>
         </div>
-        <button id="export-csv" class="btn" disabled><i class="fa-solid fa-file-arrow-down"></i> CSV (página)</button>
-        <button id="export-all" class="btn" disabled><i class="fa-solid fa-database"></i> CSV (tudo)</button>
-      </div>
-
-      <div class="table-wrap">
-        <div id="table-loader" class="loader hidden" aria-hidden="true">
-          <span class="spinner"></span>
-          <p>Carregando dados...</p>
+        <div class="sheet-actions">
+          <button id="btn-back" class="btn ghost"><i class="fas fa-arrow-left"></i> Início</button>
+          <button id="btn-export" class="btn"><i class="fas fa-file-export"></i> Exportar CSV</button>
         </div>
+      </section>
 
-        <div id="table-container" class="table-container" role="table" aria-live="polite"></div>
+      <section class="controls">
+        <div class="control-group">
+          <label for="search-input"><i class="fas fa-magnifying-glass"></i> Buscar</label>
+          <input id="search-input" class="input" type="text" placeholder="Digite para filtrar (todas as colunas)" />
+        </div>
+        <div class="control-group">
+          <label for="rows-select"><i class="fas fa-list-ol"></i> Linhas por página</label>
+          <select id="rows-select" class="input">
+            <option>25</option>
+            <option>50</option>
+            <option>100</option>
+            <option>250</option>
+            <option>500</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="filter-column"><i class="fas fa-filter"></i> Filtro por coluna</label>
+          <select id="filter-column" class="input"></select>
+        </div>
+        <div class="control-group">
+          <label for="filter-value"><i class="fas fa-filter-circle-dollar"></i> Valor</label>
+          <input id="filter-value" class="input" type="text" placeholder="Digite um valor exato (case-insensitive)" />
+        </div>
+        <div class="control-group">
+          <label for="chart-columns"><i class="fas fa-chart-line"></i> Colunas numéricas p/ gráfico</label>
+          <select id="chart-columns" class="input" multiple size="4" title="Selecione 1-3 colunas numéricas para o gráfico"></select>
+        </div>
+        <div class="control-group">
+          <label>&nbsp;</label>
+          <button id="btn-apply-chart" class="btn"><i class="fas fa-chart-simple"></i> Atualizar gráfico</button>
+        </div>
+      </section>
 
-        <div id="table-footer" class="table-footer hidden"></div>
+      <section class="stats">
+        <div class="stat"><div class="stat-value" id="stat-rows">0</div><div class="stat-label">Linhas</div></div>
+        <div class="stat"><div class="stat-value" id="stat-cols">0</div><div class="stat-label">Colunas</div></div>
+        <div class="stat"><div class="stat-value" id="stat-pages">1</div><div class="stat-label">Páginas</div></div>
+        <div class="stat"><div class="stat-value" id="stat-visible">0</div><div class="stat-label">Visíveis (após filtros)</div></div>
+      </section>
+
+      <section class="data-area">
+        <div id="table-wrap" class="table-wrap">
+          <div id="table-spinner" class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando dados…</div>
+          <table id="data-table" class="data-table" aria-live="polite">
+            <thead id="table-head"></thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
 
         <div class="pagination">
-          <button id="prev" class="btn" disabled>Anterior</button>
+          <button id="btn-prev" class="btn" disabled><i class="fas fa-chevron-left"></i> Anterior</button>
           <div id="page-info" class="page-info">Página 1 de 1</div>
-          <button id="next" class="btn" disabled>Próxima</button>
+          <button id="btn-next" class="btn" disabled>Próxima <i class="fas fa-chevron-right"></i></button>
         </div>
-      </div>
-    </section>
-  </main>
+      </section>
 
-  <footer class="site-footer">
-    <p>Dados publicados via Google Sheets • Visualização estática no GitHub Pages</p>
-  </footer>
+      <section class="charts">
+        <div class="chart-card">
+          <div class="chart-title"><i class="fas fa-chart-line"></i> Série temporal / distribuição (página atual)</div>
+          <canvas id="chart-main" height="120"></canvas>
+        </div>
+      </section>
+    </main>
 
-  <script src="./app.js" defer></script>
+    <footer class="site-footer">
+      <p>SheetsDB — dados públicos do Google Sheets | Github Pages</p>
+    </footer>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
