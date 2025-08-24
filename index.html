@@ -1,916 +1,147 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SheetsDB - Google Sheets como Banco de Dados</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --primary: #2c3e50;
-            --secondary: #3498db;
-            --accent: #e74c3c;
-            --light: #ecf0f1;
-            --dark: #2c3e50;
-            --success: #2ecc71;
-            --warning: #f39c12;
-            --danger: #e74c3c;
-            --gray: #95a5a6;
-            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            --transition: all 0.3s ease;
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #1a2a6c 0%, #2b5876 100%);
-            color: #333;
-            min-height: 100vh;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        header {
-            text-align: center;
-            padding: 30px 0;
-            color: white;
-            margin-bottom: 30px;
-        }
-        
-        h1 {
-            font-size: 2.8rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        
-        .subtitle {
-            font-size: 1.3rem;
-            opacity: 0.9;
-            max-width: 800px;
-            margin: 0 auto;
-            line-height: 1.6;
-        }
-        
-        .logo {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            color: white;
-        }
-        
-        .dashboard {
-            display: grid;
-            grid-template-columns: 320px 1fr;
-            gap: 25px;
-        }
-        
-        .card {
-            background-color: rgba(255, 255, 255, 0.97);
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            margin-bottom: 25px;
-            transition: var(--transition);
-        }
-        
-        .card:hover {
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
-            transform: translateY(-3px);
-        }
-        
-        .instructions h2 {
-            color: var(--primary);
-            margin-bottom: 15px;
-            font-size: 1.5rem;
-            border-bottom: 2px solid var(--secondary);
-            padding-bottom: 10px;
-        }
-        
-        .instructions ol {
-            margin-left: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .instructions li {
-            margin-bottom: 12px;
-            line-height: 1.5;
-        }
-        
-        .instructions code {
-            background: #f4f4f4;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 0.95rem;
-            color: var(--dark);
-        }
-        
-        .controls {
-            margin-bottom: 20px;
-        }
-        
-        .input-group {
-            margin-bottom: 18px;
-        }
-        
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: var(--primary);
-        }
-        
-        .sheet-input {
-            padding: 14px 16px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 1rem;
-            width: 100%;
-            transition: var(--transition);
-        }
-        
-        .sheet-input:focus {
-            border-color: var(--secondary);
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
-        }
-        
-        .action-btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 14px 25px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: var(--transition);
-            width: 100%;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        
-        .action-btn:hover {
-            background: var(--secondary);
-            transform: translateY(-2px);
-        }
-        
-        .action-btn.secondary {
-            background: var(--gray);
-        }
-        
-        .action-btn.secondary:hover {
-            background: #7f8c8d;
-        }
-        
-        .sheet-info {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-            border-left: 4px solid var(--secondary);
-        }
-        
-        .sheet-info h3 {
-            margin-bottom: 12px;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .sheet-info p {
-            margin-bottom: 10px;
-            font-size: 0.95rem;
-        }
-        
-        .main-content {
-            display: flex;
-            flex-direction: column;
-            gap: 25px;
-        }
-        
-        .filters {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            align-items: center;
-        }
-        
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            flex: 1;
-            min-width: 250px;
-        }
-        
-        .filter-group label {
-            font-weight: bold;
-            color: white;
-            font-size: 0.95rem;
-        }
-        
-        .filter-select, .search-input {
-            padding: 12px 16px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 1rem;
-            width: 100%;
-        }
-        
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-        }
-        
-        .stat-item {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: var(--shadow);
-        }
-        
-        .stat-value {
-            font-size: 2.2rem;
-            font-weight: bold;
-            color: var(--primary);
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            font-size: 1rem;
-            color: var(--gray);
-        }
-        
-        .data-container {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            overflow-x: auto;
-        }
-        
-        .tab-container {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .tab {
-            padding: 12px 24px;
-            background: #e9ecef;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: var(--transition);
-            font-weight: 500;
-        }
-        
-        .tab.active {
-            background: var(--primary);
-            color: white;
-        }
-        
-        .tab:hover:not(.active) {
-            background: #ced4da;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-        
-        th, td {
-            padding: 14px 16px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        th {
-            background-color: var(--primary);
-            color: white;
-            position: sticky;
-            top: 0;
-            font-weight: 600;
-        }
-        
-        tr:nth-child(even) {
-            background-color: #f8f9fa;
-        }
-        
-        tr:hover {
-            background-color: #e9ecef;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 50px;
-            color: var(--primary);
-            font-size: 1.3rem;
-        }
-        
-        .loading i {
-            display: block;
-            font-size: 3rem;
-            margin-bottom: 20px;
-            color: var(--secondary);
-        }
-        
-        .error {
-            text-align: center;
-            padding: 25px;
-            background: #ffebee;
-            color: #b71c1c;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border-left: 4px solid var(--danger);
-        }
-        
-        .pagination {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 25px;
-        }
-        
-        .pagination-btn {
-            padding: 10px 16px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-        
-        .pagination-btn:hover:not(:disabled) {
-            background: var(--secondary);
-        }
-        
-        .pagination-btn:disabled {
-            background: var(--gray);
-            cursor: not-allowed;
-        }
-        
-        .pagination-info {
-            display: flex;
-            align-items: center;
-            padding: 0 15px;
-            color: var(--dark);
-            font-weight: 500;
-        }
-        
-        footer {
-            text-align: center;
-            color: white;
-            padding: 40px 0;
-            margin-top: 50px;
-            opacity: 0.8;
-        }
-        
-        @media (max-width: 1024px) {
-            .dashboard {
-                grid-template-columns: 1fr;
-            }
-            
-            .filters {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .filter-select, .search-input {
-                width: 100%;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .stats {
-                grid-template-columns: 1fr;
-            }
-            
-            h1 {
-                font-size: 2.2rem;
-            }
-            
-            .subtitle {
-                font-size: 1.1rem;
-            }
-            
-            .tab {
-                padding: 10px 15px;
-                font-size: 0.9rem;
-            }
-        }
-        
-        /* Animações */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .fade-in {
-            animation: fadeIn 0.5s ease forwards;
-        }
-        
-        /* Scroll personalizado */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: var(--secondary);
-            border-radius: 10px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary);
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SheetsDB — Google Sheets como Banco de Dados</title>
+  <meta name="description" content="Use o Google Sheets como banco de dados no GitHub Pages, com múltiplas abas, paginação, ordenação, busca e exportação CSV."/>
+  <link rel="preconnect" href="https://docs.google.com" />
+  <link rel="preconnect" href="https://spreadsheets.google.com" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="logo">
-                <i class="fas fa-database"></i>
-            </div>
-            <h1>SheetsDB</h1>
-            <p class="subtitle">Use o Google Sheets como banco de dados para seu site no GitHub Pages</p>
-        </header>
-        
-        <div class="dashboard">
-            <div class="sidebar">
-                <div class="card instructions">
-                    <h2><i class="fas fa-info-circle"></i> Como usar:</h2>
-                    <ol>
-                        <li>Crie uma planilha no Google Sheets com seus dados</li>
-                        <li>Compartilhe a planilha publicamente (Arquivo > Compartilhar > Tornar público)</li>
-                        <li>Obtenha o ID da planilha da URL</li>
-                        <li>Cole o ID no campo ao lado e clique em "Carregar Dados"</li>
-                        <li>Navegue entre as abas usando o menu superior</li>
-                    </ol>
-                    <p><strong>Formato da URL:</strong></p>
-                    <code>https://docs.google.com/spreadsheets/d/SEU_ID_AQUI/edit#gid=0</code>
-                </div>
-                
-                <div class="card">
-                    <div class="controls">
-                        <div class="input-group">
-                            <label for="sheet-id">ID da Planilha:</label>
-                            <input type="text" class="sheet-input" id="sheet-id" placeholder="Cole o ID da sua planilha">
-                        </div>
-                        
-                        <button class="action-btn" id="load-btn">
-                            <i class="fas fa-download"></i> Carregar Dados
-                        </button>
-                        
-                        <button class="action-btn secondary" id="reset-btn">
-                            <i class="fas fa-redo"></i> Limpar Tudo
-                        </button>
-                    </div>
-                    
-                    <div class="sheet-info">
-                        <h3><i class="fas fa-lightbulb"></i> Exemplo</h3>
-                        <p>Use este ID para testar:</p>
-                        <code>1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms</code>
-                        <p>Esta planilha de exemplo contém várias abas com dados diferentes.</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="main-content">
-                <div class="filters">
-                    <div class="filter-group">
-                        <label for="sheet-select">Selecionar Aba:</label>
-                        <select class="filter-select" id="sheet-select" disabled>
-                            <option value="">Carregue os dados primeiro</option>
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label for="search-input">Buscar na Tabela:</label>
-                        <input type="text" class="search-input" id="search-input" placeholder="Digite para buscar..." disabled>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label for="rows-per-page">Linhas por Página:</label>
-                        <select class="filter-select" id="rows-per-page" disabled>
-                            <option value="10">10</option>
-                            <option value="25" selected>25</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="stats">
-                    <div class="stat-item fade-in">
-                        <div class="stat-value" id="total-items">0</div>
-                        <div class="stat-label">Total de Itens</div>
-                    </div>
-                    <div class="stat-item fade-in">
-                        <div class="stat-value" id="total-columns">0</div>
-                        <div class="stat-label">Colunas</div>
-                    </div>
-                    <div class="stat-item fade-in">
-                        <div class="stat-value" id="current-sheet">-</div>
-                        <div class="stat-label">Aba Atual</div>
-                    </div>
-                    <div class="stat-item fade-in">
-                        <div class="stat-value" id="last-update">-</div>
-                        <div class="stat-label">Última Atualização</div>
-                    </div>
-                </div>
-                
-                <div id="error-message" class="error" style="display: none;"></div>
-                
-                <div class="data-container">
-                    <div class="tab-container" id="tab-container"></div>
-                    
-                    <div id="table-container">
-                        <div class="loading">
-                            <i class="fas fa-database"></i>
-                            <p>Insira o ID de uma planilha e clique em "Carregar Dados"</p>
-                        </div>
-                    </div>
-                    
-                    <div class="pagination" id="pagination" style="display: none;">
-                        <button class="pagination-btn" id="prev-btn" disabled>Anterior</button>
-                        <div class="pagination-info" id="pagination-info">Página 1 de 1</div>
-                        <button class="pagination-btn" id="next-btn" disabled>Próxima</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <footer>
-            <p>SheetsDB - Google Sheets como Banco de Dados | GitHub Pages</p>
-        </footer>
+  <header class="site-header">
+    <div class="brand">
+      <i class="fa-solid fa-database" aria-hidden="true"></i>
+      <h1>SheetsDB</h1>
     </div>
+    <p class="subtitle">Use o Google Sheets como banco de dados para seu site no GitHub Pages</p>
+  </header>
 
-    <script>
-        // Elementos da interface
-        const sheetIdInput = document.getElementById('sheet-id');
-        const loadBtn = document.getElementById('load-btn');
-        const resetBtn = document.getElementById('reset-btn');
-        const sheetSelect = document.getElementById('sheet-select');
-        const searchInput = document.getElementById('search-input');
-        const rowsPerPageSelect = document.getElementById('rows-per-page');
-        const tabContainer = document.getElementById('tab-container');
-        const tableContainer = document.getElementById('table-container');
-        const errorMessage = document.getElementById('error-message');
-        const totalItems = document.getElementById('total-items');
-        const totalColumns = document.getElementById('total-columns');
-        const currentSheet = document.getElementById('current-sheet');
-        const lastUpdate = document.getElementById('last-update');
-        const pagination = document.getElementById('pagination');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const paginationInfo = document.getElementById('pagination-info');
-        
-        // Variáveis globais
-        let sheetsData = {};
-        let currentSheetName = '';
-        let currentPage = 1;
-        let rowsPerPage = 25;
-        let filteredData = [];
-        
-        // URL de exemplo para teste (planilha pública do Google Sheets)
-        sheetIdInput.value = '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms';
-        
-        // Função para carregar dados do Google Sheets
-        async function loadSheetData(sheetId) {
-            try {
-                // Mostrar estado de carregamento
-                tableContainer.innerHTML = `
-                    <div class="loading">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p>Carregando dados da planilha...</p>
-                    </div>
-                `;
-                errorMessage.style.display = 'none';
-                
-                // Obter a lista de abas primeiro
-                const sheetInfoResponse = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`);
-                
-                if (!sheetInfoResponse.ok) {
-                    throw new Error('Planilha não encontrada. Verifique o ID.');
-                }
-                
-                const sheetInfoText = await sheetInfoResponse.text();
-                const sheetInfoJson = JSON.parse(sheetInfoText.substring(47).slice(0, -2));
-                
-                // Extrair informações das abas
-                const sheets = sheetInfoJson.table?.cols || [];
-                const sheetNames = sheets.map(sheet => sheet.label).filter(name => name);
-                
-                if (sheetNames.length === 0) {
-                    throw new Error('Nenhuma aba encontrada na planilha.');
-                }
-                
-                // Carregar dados de cada aba
-                sheetsData = {};
-                
-                for (const sheetName of sheetNames) {
-                    const encodedSheetName = encodeURIComponent(sheetName);
-                    const response = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodedSheetName}`);
-                    
-                    if (response.ok) {
-                        const text = await response.text();
-                        const json = JSON.parse(text.substring(47).slice(0, -2));
-                        sheetsData[sheetName] = json;
-                    }
-                }
-                
-                // Preencher seletor de abas
-                populateSheetSelector(sheetNames);
-                
-                // Habilitar controles
-                rowsPerPageSelect.disabled = false;
-                
-                // Mostrar a primeira aba por padrão
-                if (sheetNames.length > 0) {
-                    showSheet(sheetNames[0]);
-                }
-                
-            } catch (error) {
-                console.error('Erro ao carregar dados:', error);
-                errorMessage.textContent = `Erro: ${error.message || 'Falha ao carregar dados'}`;
-                errorMessage.style.display = 'block';
-                tableContainer.innerHTML = `
-                    <div class="loading">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <p>Falha ao carregar dados. Verifique o ID da planilha.</p>
-                    </div>
-                `;
-            }
-        }
-        
-        // Função para preencher o seletor de abas
-        function populateSheetSelector(sheetNames) {
-            // Limpar seletor
-            sheetSelect.innerHTML = '';
-            tabContainer.innerHTML = '';
-            
-            // Adicionar opções
-            sheetNames.forEach(sheetName => {
-                const option = document.createElement('option');
-                option.value = sheetName;
-                option.textContent = sheetName;
-                sheetSelect.appendChild(option);
-                
-                const tab = document.createElement('div');
-                tab.className = 'tab';
-                tab.textContent = sheetName;
-                tab.addEventListener('click', () => showSheet(sheetName));
-                tabContainer.appendChild(tab);
-            });
-            
-            // Habilitar controles
-            sheetSelect.disabled = false;
-            searchInput.disabled = false;
-        }
-        
-        // Função para mostrar os dados de uma aba específica
-        function showSheet(sheetName) {
-            if (!sheetsData[sheetName]) return;
-            
-            // Atualizar aba ativa
-            currentSheetName = sheetName;
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.toggle('active', tab.textContent === sheetName);
-            });
-            
-            // Atualizar seletor
-            sheetSelect.value = sheetName;
-            
-            // Processar os dados
-            const data = sheetsData[sheetName];
-            processSheetData(data, sheetName);
-        }
-        
-        // Função para processar os dados da planilha
-        function processSheetData(data, sheetName) {
-            if (!data.table || !data.table.cols || !data.table.rows) {
-                throw new Error('Formato de dados inválido da planilha');
-            }
-            
-            // Extrair cabeçalhos das colunas
-            const headers = data.table.cols.map(col => col.label);
-            
-            // Extrair linhas de dados
-            const rows = data.table.rows.map(row => {
-                const item = {};
-                row.c.forEach((cell, index) => {
-                    item[headers[index]] = cell ? cell.v : '';
-                });
-                return item;
-            });
-            
-            // Atualizar estatísticas
-            totalItems.textContent = rows.length;
-            totalColumns.textContent = headers.length;
-            currentSheet.textContent = sheetName;
-            lastUpdate.textContent = new Date().toLocaleTimeString();
-            
-            // Inicializar dados filtrados
-            filteredData = rows;
-            
-            // Renderizar os dados
-            renderTable(filteredData, headers, sheetName);
-        }
-        
-        // Função para renderizar a tabela com paginação
-        function renderTable(data, headers, sheetName) {
-            if (data.length === 0) {
-                tableContainer.innerHTML = '<div class="loading">Nenhum dado encontrado nesta aba</div>';
-                pagination.style.display = 'none';
-                return;
-            }
-            
-            // Calcular paginação
-            const totalPages = Math.ceil(data.length / rowsPerPage);
-            currentPage = Math.min(currentPage, totalPages);
-            
-            // Obter dados para a página atual
-            const startIndex = (currentPage - 1) * rowsPerPage;
-            const endIndex = Math.min(startIndex + rowsPerPage, data.length);
-            const pageData = data.slice(startIndex, endIndex);
-            
-            // Construir tabela HTML
-            let tableHTML = `
-                <h3>Aba: ${sheetName}</h3>
-                <table>
-                    <thead>
-                        <tr>
-            `;
-            
-            // Cabeçalhos da tabela
-            headers.forEach(header => {
-                tableHTML += `<th>${header}</th>`;
-            });
-            
-            tableHTML += `
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            // Dados da tabela
-            pageData.forEach(item => {
-                tableHTML += `<tr>`;
-                headers.forEach(header => {
-                    tableHTML += `<td>${item[header] || '-'}</td>`;
-                });
-                tableHTML += `</tr>`;
-            });
-            
-            tableHTML += `
-                    </tbody>
-                </table>
-            `;
-            
-            tableContainer.innerHTML = tableHTML;
-            
-            // Atualizar controles de paginação
-            updatePaginationControls(data.length, totalPages);
-        }
-        
-        // Função para atualizar controles de paginação
-        function updatePaginationControls(totalItems, totalPages) {
-            pagination.style.display = totalPages > 1 ? 'flex' : 'none';
-            prevBtn.disabled = currentPage <= 1;
-            nextBtn.disabled = currentPage >= totalPages;
-            paginationInfo.textContent = `Página ${currentPage} de ${totalPages} | ${totalItems} itens`;
-        }
-        
-        // Função para buscar dados na tabela
-        function filterTable(searchTerm) {
-            if (!searchTerm) {
-                filteredData = getCurrentSheetData();
-                currentPage = 1;
-                renderTable(filteredData, Object.keys(filteredData[0] || {}), currentSheetName);
-                return;
-            }
-            
-            const term = searchTerm.toLowerCase();
-            const data = getCurrentSheetData();
-            
-            filteredData = data.filter(item => {
-                return Object.values(item).some(value => 
-                    value && value.toString().toLowerCase().includes(term)
-                );
-            });
-            
-            currentPage = 1;
-            renderTable(filteredData, Object.keys(filteredData[0] || {}), currentSheetName);
-        }
-        
-        // Função para obter dados da aba atual
-        function getCurrentSheetData() {
-            if (!sheetsData[currentSheetName]) return [];
-            
-            const data = sheetsData[currentSheetName];
-            const headers = data.table.cols.map(col => col.label);
-            
-            return data.table.rows.map(row => {
-                const item = {};
-                row.c.forEach((cell, index) => {
-                    item[headers[index]] = cell ? cell.v : '';
-                });
-                return item;
-            });
-        }
-        
-        // Event listeners
-        loadBtn.addEventListener('click', () => {
-            const sheetId = sheetIdInput.value.trim();
-            if (sheetId) {
-                loadSheetData(sheetId);
-            } else {
-                errorMessage.textContent = 'Por favor, insira um ID de planilha válido';
-                errorMessage.style.display = 'block';
-            }
-        });
-        
-        resetBtn.addEventListener('click', () => {
-            sheetIdInput.value = '';
-            sheetsData = {};
-            currentSheetName = '';
-            filteredData = [];
-            currentPage = 1;
-            
-            sheetSelect.innerHTML = '<option value="">Carregue os dados primeiro</option>';
-            sheetSelect.disabled = true;
-            searchInput.value = '';
-            searchInput.disabled = true;
-            rowsPerPageSelect.disabled = true;
-            tabContainer.innerHTML = '';
-            tableContainer.innerHTML = `
-                <div class="loading">
-                    <i class="fas fa-database"></i>
-                    <p>Insira o ID de uma planilha e clique em "Carregar Dados"</p>
-                </div>
-            `;
-            pagination.style.display = 'none';
-            
-            totalItems.textContent = '0';
-            totalColumns.textContent = '0';
-            currentSheet.textContent = '-';
-            lastUpdate.textContent = '-';
-            
-            errorMessage.style.display = 'none';
-        });
-        
-        sheetSelect.addEventListener('change', (e) => {
-            showSheet(e.target.value);
-        });
-        
-        searchInput.addEventListener('input', (e) => {
-            filterTable(e.target.value);
-        });
-        
-        rowsPerPageSelect.addEventListener('change', (e) => {
-            rowsPerPage = parseInt(e.target.value);
-            currentPage = 1;
-            renderTable(filteredData, Object.keys(filteredData[0] || {}), currentSheetName);
-        });
-        
-        prevBtn.addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderTable(filteredData, Object.keys(filteredData[0] || {}), currentSheetName);
-            }
-        });
-        
-        nextBtn.addEventListener('click', () => {
-            const totalPages = Math.ceil(filteredData.length / rowsPerPage);
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderTable(filteredData, Object.keys(filteredData[0] || {}), currentSheetName);
-            }
-        });
-    </script>
+  <main class="container">
+    <section class="dashboard">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <article class="card">
+          <h2 class="card-title"><i class="fa-solid fa-circle-info"></i> Como usar</h2>
+          <ol class="steps">
+            <li>Crie/abra uma planilha pública no Google Sheets.</li>
+            <li>Compartilhe como <strong>qualquer pessoa com o link</strong> (Arquivo → Compartilhar → Geral).</li>
+            <li>Copie o <strong>ID</strong> da URL.</li>
+            <li>Cole abaixo e clique em <strong>Carregar</strong>.</li>
+          </ol>
+          <p class="muted">Formato da URL:</p>
+          <code class="code-inline">https://docs.google.com/spreadsheets/d/SEU_ID_AQUI/edit#gid=0</code>
+        </article>
+
+        <article class="card">
+          <h3 class="card-title"><i class="fa-solid fa-plug"></i> Conexão</h3>
+          <div class="field">
+            <label for="sheet-id">ID da Planilha</label>
+            <input id="sheet-id" class="input-base" placeholder="Cole o ID da sua planilha" />
+          </div>
+          <div class="actions">
+            <button id="load-btn" class="btn primary">
+              <i class="fa-solid fa-download"></i> Carregar
+            </button>
+            <button id="reset-btn" class="btn">
+              <i class="fa-solid fa-rotate"></i> Limpar
+            </button>
+          </div>
+
+          <details class="card hint">
+            <summary><strong>Exemplo de teste</strong></summary>
+            <p>Use este ID público (Google Class Data):</p>
+            <code class="code-inline selectable">1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms</code>
+          </details>
+        </article>
+
+        <article class="card">
+          <h3 class="card-title"><i class="fa-solid fa-gear"></i> Preferências</h3>
+          <div class="field">
+            <label for="rows-per-page">Linhas por página</label>
+            <select id="rows-per-page" class="input-base">
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="header-rows">Cabeçalhos</label>
+            <select id="header-rows" class="input-base">
+              <option value="1" selected>Primeira linha é cabeçalho</option>
+              <option value="0">Sem cabeçalho (A, B, C...)</option>
+              <option value="2">Duas linhas (mescladas)</option>
+            </select>
+          </div>
+
+          <div class="field switcher">
+            <input type="checkbox" id="cache-toggle" checked />
+            <label for="cache-toggle">Usar cache local (mais rápido)</label>
+          </div>
+        </article>
+      </aside>
+
+      <!-- Main -->
+      <section class="main">
+        <div id="error" class="alert hidden" role="alert" aria-live="assertive"></div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-label">Itens na aba</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="stat-cols">0</div>
+            <div class="stat-label">Colunas</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="stat-sheet">-</div>
+            <div class="stat-label">Aba atual</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="stat-updated">-</div>
+            <div class="stat-label">Última atualização</div>
+          </div>
+        </div>
+
+        <div class="tools">
+          <div class="field grow">
+            <label for="search-input" class="visually-hidden">Busca</label>
+            <input id="search-input" class="input-base" placeholder="Buscar (na página carregada)..." disabled />
+          </div>
+          <button id="export-csv" class="btn" disabled><i class="fa-solid fa-file-arrow-down"></i> CSV</button>
+        </div>
+
+        <nav class="tabs" id="tabs" aria-label="Abas da planilha"></nav>
+
+        <div class="table-wrap">
+          <div id="table-loader" class="loader hidden" aria-hidden="true">
+            <span class="spinner"></span>
+            <p>Carregando dados...</p>
+          </div>
+
+          <div id="table-container" class="table-container" role="table" aria-live="polite">
+            <!-- tabela renderizada via JS -->
+          </div>
+
+          <div class="pagination">
+            <button id="prev" class="btn" disabled>Anterior</button>
+            <div id="page-info" class="page-info">Página 1 de 1</div>
+            <button id="next" class="btn" disabled>Próxima</button>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>SheetsDB — Google Sheets como Banco de Dados | GitHub Pages</p>
+  </footer>
+
+  <script src="./app.js" defer></script>
 </body>
 </html>
