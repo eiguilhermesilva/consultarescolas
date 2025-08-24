@@ -1,595 +1,612 @@
-/* app.js – Apresentação fixa de uma planilha específica (somente leitura)
- * Recursos:
- * - Lista abas públicas automaticamente
- * - Paginação servidor (limit/offset via GViz)
- * - Ordenação por coluna, busca (na página), exportar CSV (página e tudo)
- * - Cache leve em localStorage
- * - Configuração por aba: renomear/ocultar/ordenar colunas, sort padrão, somatórios, formatação
- */
-
-const SHEET_ID = "1fD4DMjR_5iRgTpKsS27McaV_tdbCTk50HKScpNyW7_U"; // <- o seu ID FIXO
-
-/* ====================== CONFIGURAÇÃO ============================
- * Personalize a exibição por aba (título da guia exatamente como no Sheets)
- * - columns.order: define a ordem das colunas
- * - columns.rename: renomeia cabeçalhos
- * - columns.hide: oculta colunas
- * - defaultSort: { key: "Nome da Coluna", dir: "asc"|"desc" }
- * - summarize: lista de colunas numéricas para totalizar (exibe no rodapé)
- * - formats: { "Coluna": "number"|"currency"|"percent"|"date" }
- */
+/* =========================
+   CONFIGURAÇÃO PRINCIPAL
+========================= */
 const CONFIG = {
-  global: {
-    rowsPerPage: 50,     // padrão
-    headerRows: 1,       // quantas linhas são cabeçalho
-    currency: { style: "currency", currency: "BRL", minimumFractionDigits: 2 },
-    number: { maximumFractionDigits: 2 },
-    percent: { style: "percent", maximumFractionDigits: 2 },
-    locale: "pt-BR",
-    cacheMinutes: 10,
-  },
-  // Exemplo de configuração por aba (ajuste os nomes das abas depois de carregar uma vez e ver os títulos)
-  sheets: {
-    // "Vendas 2025": {
-    //   columns: {
-    //     order: ["Data", "Cliente", "Produto", "Quantidade", "Preço", "Total"],
-    //     rename: { "Preço": "Preço (R$)" },
-    //     hide: ["Observações"]
-    //   },
-    //   defaultSort: { key: "Data", dir: "desc" },
-    //   summarize: ["Total"],
-    //   formats: { "Data": "date", "Preço": "currency", "Total": "currency", "Quantidade": "number" }
-    // }
-  }
+  spreadsheetId: "1fD4DMjR_5iRgTpKsS27McaV_tdbCTk50HKScpNyW7_U",
+  // Abas mapeadas manualmente (detectadas na planilha)
+  sheets: [
+    { key: "Consulte Escolas", label: "Consulte Escolas", enabled: true },
+    { key: "Cadastros", label: "Cadastros", enabled: true },
+    { key: "Escolas", label: "Escolas", enabled: true },
+    { key: "Descrit Saeb e AprBr", label: "Descrit SAEB & Aprova Brasil", enabled: true },
+    { key: "Descrit CAEd", label: "Descrit CAEd", enabled: true },
+    { key: "Sugestões", label: "Sugestões", enabled: true },
+    { key: "Resumo Escolas", label: "Resumo Escolas", enabled: true },
+    { key: "R 01 Metas Saeb 25", label: "R01 Metas Saeb 2025", enabled: true }
+  ],
+  requestTimeoutMs: 30000,          // timeout de rede
+  defaultRowsPerPage: 25,
+  maxRowsPerPage: 1000,             // proteção
+  chartMaxSeries: 3,                // até 3 séries por gráfico
+  cacheTtlMs: 5 * 60 * 1000         // cache em memória/aba por 5 min
 };
 
-/* ====================== Seletores de UI ======================== */
-const UI = {
-  error: document.getElementById("error"),
-  tabs: document.getElementById("tabs"),
-  tableContainer: document.getElementById("table-container"),
-  tableLoader: document.getElementById("table-loader"),
-  tableFooter: document.getElementById("table-footer"),
-  searchInput: document.getElementById("search-input"),
-  exportCSV: document.getElementById("export-csv"),
-  exportAll: document.getElementById("export-all"),
-  statTotal: document.getElementById("stat-total"),
-  statCols: document.getElementById("stat-cols"),
-  statSheet: document.getElementById("stat-sheet"),
-  statUpdated: document.getElementById("stat-updated"),
-  prevBtn: document.getElementById("prev"),
-  nextBtn: document.getElementById("next"),
-  pageInfo: document.getElementById("page-info"),
-};
-
-/* ========================= Estado ============================== */
+/* =========================
+   STATE & CACHES
+========================= */
 const state = {
-  worksheets: /** @type {Array<{title:string,gid:number}>} */ ([]),
-  active: /** @type {{title:string,gid:number}|null} */ (null),
-  rowsPerPage: CONFIG.global.rowsPerPage,
-  headerRows: CONFIG.global.headerRows,
+  route: "home",
+  currentSheet: null,
   page: 1,
-  totalRows: 0,
-  headers: /** @type {string[]} */ ([]),
-  pageRows: /** @type {Array<Record<string, any>>} */ ([]),
-  sortKey: null,
-  sortDir: "asc",
-  searchTerm: "",
+  rowsPerPage: Number(localStorage.getItem("rowsPerPage")) || CONFIG.defaultRowsPerPage,
+  search: "",
+  filterColumn: "",
+  filterValue: "",
+  sort: { col: null, dir: "asc" },
+  lastUpdate: null,
+  numericColumns: [],
+  chartColumns: [],
+  dataCache: new Map(), // key: sheetName -> { headers, rows, ts }
 };
 
-const CACHE_PREFIX = "sheet-fixed:v1:";
+const qs = (sel) => document.querySelector(sel);
+const qsa = (sel) => Array.from(document.querySelectorAll(sel));
 
-/* ========================= Utils =============================== */
-function showError(msg) {
-  UI.error.textContent = msg;
-  UI.error.classList.remove("hidden");
-}
-function clearError() {
-  UI.error.classList.add("hidden");
-  UI.error.textContent = "";
-}
-function setLoading(loading) {
-  UI.tableLoader.classList.toggle("hidden", !loading);
-  UI.tableLoader.setAttribute("aria-hidden", loading ? "false" : "true");
-}
-function fmtDateTime(d = new Date()) {
-  return new Intl.DateTimeFormat(CONFIG.global.locale, { dateStyle: "short", timeStyle: "medium" }).format(d);
-}
-function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+/* =========================
+   BOOTSTRAP
+========================= */
+document.addEventListener("DOMContentLoaded", () => {
+  buildNav();
+  buildHomeCards(); // mostra cards com “lazy load” de stats
 
-function toCSV(headers, rows){
-  const esc = (v)=> {
-    if (v == null) return "";
-    const s = String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
-  };
-  const lines = [headers.map(esc).join(",")];
-  for (const r of rows) lines.push(headers.map(h=>esc(r[h])).join(","));
-  return lines.join("\n");
-}
-function downloadFile(filename, content, mime="text/plain;charset=utf-8"){
-  const blob = new Blob([content], {type: mime});
-  const url = URL.createObjectURL(blob);
-  const a = Object.assign(document.createElement("a"), { href: url, download: filename });
-  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-}
+  // Navegação
+  qsa(".nav-btn").forEach(b => b.addEventListener("click", () => go("home")));
+  qs("#btn-back").addEventListener("click", () => go("home"));
 
-/* ==================== Formatação de valores ==================== */
-function formatValue(col, value){
-  const sheetCfg = CONFIG.sheets[state.active?.title] || {};
-  const fmt = (sheetCfg.formats && sheetCfg.formats[col]) || null;
-  if (value == null || value === "") return "";
-  try{
-    switch(fmt){
-      case "currency": return new Intl.NumberFormat(CONFIG.global.locale, CONFIG.global.currency).format(Number(value));
-      case "percent": return new Intl.NumberFormat(CONFIG.global.locale, CONFIG.global.percent).format(Number(value));
-      case "number":  return new Intl.NumberFormat(CONFIG.global.locale, CONFIG.global.number).format(Number(value));
-      case "date": {
-        // Tenta tratar tanto número serial do Google quanto string
-        if (typeof value === "number") {
-          // Serial do Google (dias desde 1899-12-30)
-          const epoch = new Date(Date.UTC(1899, 11, 30));
-          const ms = value * 86400000;
-          const d = new Date(epoch.getTime() + ms);
-          return new Intl.DateTimeFormat(CONFIG.global.locale).format(d);
-        }
-        const d = new Date(value);
-        return isNaN(+d) ? String(value) : new Intl.DateTimeFormat(CONFIG.global.locale).format(d);
-      }
-      default: return String(value);
-    }
-  } catch { return String(value); }
-}
-
-/* ==================== Acesso ao Google Sheets ================== */
-async function listWorksheets(sheetId){
-  const url = `https://spreadsheets.google.com/feeds/worksheets/${sheetId}/public/full?alt=json`;
-  try{
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    const entries = json?.feed?.entry ?? [];
-    const tabs = [];
-    for (const e of entries){
-      const title = e?.title?.$t ?? "Sem título";
-      let gid = null;
-      for (const l of (e?.link || [])){
-        const m = (l?.href || "").match(/[?&#]gid=(\d+)/);
-        if (m) { gid = Number(m[1]); break; }
-      }
-      if (gid == null && e["gs$gid"]) gid = Number(e["gs$gid"]);
-      if (gid == null && /\/od6$/.test(e?.id?.$t || "")) gid = 0;
-      if (gid != null) tabs.push({ title, gid });
-    }
-    if (!tabs.length) throw new Error("Nenhuma aba pública encontrada.");
-    return tabs;
-  }catch(e){
-    console.warn("Falha ao listar abas, usando fallback gid=0", e);
-    return [{ title: "Planilha 1", gid: 0 }];
-  }
-}
-
-function gvizUrl({ sheetId, gid, headers, query }){
-  const p = new URLSearchParams({ tqx: "out:json", gid: String(gid), headers: String(headers) });
-  if (query) p.set("tq", query);
-  return `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?${p.toString()}`;
-}
-function parseGviz(text){
-  const json = JSON.parse(text.replace(/^[^{]+/, "").replace(/;?\s*$/, ""));
-  if (json.status !== "ok") throw new Error(json?.errors?.[0]?.detailed_message || "Erro GViz");
-  return json;
-}
-function tableToRows(table){
-  const cols = table.cols || [];
-  const headers = cols.map((c, i) => c.label || c.id || `Col${i+1}`);
-  const rows = [];
-  for (const r of (table.rows || [])){
-    const obj = {};
-    (r.c || []).forEach((cell, idx) => {
-      let v = cell?.v ?? "";
-      // preserva strings formatadas quando existirem
-      if (cell?.f && typeof cell.v === "number") v = cell.v; // manter número cru; formatamos depois
-      obj[headers[idx]] = v;
-    });
-    rows.push(obj);
-  }
-  return { headers, rows };
-}
-async function countRows(sheetId, gid, headers){
-  const url = gvizUrl({ sheetId, gid, headers, query: "select count(A)" });
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Falha ao contar registros.");
-  const json = parseGviz(await res.text());
-  const cell = json?.table?.rows?.[0]?.c?.[0];
-  return Number(cell?.v ?? 0);
-}
-async function fetchPage(sheetId, gid, headers, limit, offset){
-  const q = `select * limit ${limit} offset ${offset}`;
-  const res = await fetch(gvizUrl({ sheetId, gid, headers, query: q }));
-  if (!res.ok) throw new Error("Falha ao carregar página.");
-  const json = parseGviz(await res.text());
-  return tableToRows(json.table);
-}
-
-/* ========================== Cache ============================== */
-function cacheKeyPage(sheetId, gid, headerRows, page, limit){
-  return `${CACHE_PREFIX}${sheetId}:${gid}:h${headerRows}:p${page}:l${limit}`;
-}
-function cacheKeyCount(sheetId, gid, headerRows){
-  return `${CACHE_PREFIX}${sheetId}:${gid}:count:h${headerRows}`;
-}
-function cacheGet(key, maxMinutes){
-  try{
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const { t, v } = JSON.parse(raw);
-    if ((Date.now() - t) > maxMinutes*60*1000) return null;
-    return v;
-  }catch{ return null; }
-}
-function cacheSet(key, value){
-  try{ localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: value })); }catch{}
-}
-
-/* ======================== Renderização ========================= */
-function applyColumnConfig(headers, rows){
-  const sheetCfg = CONFIG.sheets[state.active?.title] || {};
-  const rename = sheetCfg.columns?.rename || {};
-  const hide = new Set(sheetCfg.columns?.hide || []);
-  let ordered = [...headers];
-
-  if (Array.isArray(sheetCfg.columns?.order) && sheetCfg.columns.order.length){
-    const orderSet = new Set(sheetCfg.columns.order);
-    const rest = ordered.filter(h => !orderSet.has(h) && !hide.has(h));
-    ordered = sheetCfg.columns.order.filter(h => !hide.has(h)).concat(rest);
-  } else {
-    ordered = ordered.filter(h => !hide.has(h));
-  }
-
-  const finalHeaders = ordered.map(h => rename[h] || h);
-
-  // mapeia valores com possíveis renomes
-  const mappedRows = rows.map(r=>{
-    const out = {};
-    for (const h of ordered){
-      const newKey = rename[h] || h;
-      out[newKey] = r[h];
-    }
-    return out;
+  // Controles
+  const rowsSelect = qs("#rows-select");
+  rowsSelect.value = state.rowsPerPage;
+  rowsSelect.addEventListener("change", (e) => {
+    state.rowsPerPage = clamp(parseInt(e.target.value, 10) || CONFIG.defaultRowsPerPage, 1, CONFIG.maxRowsPerPage);
+    localStorage.setItem("rowsPerPage", String(state.rowsPerPage));
+    state.page = 1;
+    renderCurrent();
   });
 
-  return { headers: finalHeaders, rows: mappedRows };
+  qs("#search-input").addEventListener("input", debounce((e) => {
+    state.search = (e.target.value || "").trim();
+    state.page = 1;
+    renderCurrent();
+  }, 200));
+
+  qs("#filter-column").addEventListener("change", (e) => {
+    state.filterColumn = e.target.value || "";
+    state.page = 1;
+    renderCurrent();
+  });
+  qs("#filter-value").addEventListener("input", debounce((e) => {
+    state.filterValue = (e.target.value || "").trim();
+    state.page = 1;
+    renderCurrent();
+  }, 200));
+
+  qs("#btn-prev").addEventListener("click", () => { state.page = Math.max(1, state.page - 1); renderCurrent(); });
+  qs("#btn-next").addEventListener("click", () => { state.page = state.page + 1; renderCurrent(); });
+
+  qs("#btn-export").addEventListener("click", exportCSV);
+
+  qs("#btn-apply-chart").addEventListener("click", () => {
+    const select = qs("#chart-columns");
+    const selected = Array.from(select.selectedOptions).map(o => o.value);
+    state.chartColumns = selected.slice(0, CONFIG.chartMaxSeries);
+    drawChart();
+  });
+
+  // Roteamento Simples via hash
+  window.addEventListener("hashchange", handleHashRoute);
+  handleHashRoute();
+});
+
+/* =========================
+   ROTEAMENTO
+========================= */
+function handleHashRoute(){
+  const hash = decodeURIComponent(location.hash.replace(/^#/, "")) || "";
+  if (!hash) return;
+  const [r, sheet] = hash.split(":");
+  if (r === "sheet" && sheet) {
+    openSheet(sheet);
+  }
 }
 
-function renderTabs(tabs){
-  UI.tabs.innerHTML = "";
-  for (const t of tabs){
+function go(view){
+  state.route = view;
+  toggleView(view);
+  if (view === "home") {
+    location.hash = "";
+  }
+}
+
+function toggleView(view){
+  qsa(".view").forEach(v => v.classList.remove("active"));
+  qs(`#view-${view}`).classList.add("active");
+}
+
+/* =========================
+   NAV & HOME
+========================= */
+function buildNav(){
+  const nav = qs("#nav-sheets");
+  nav.innerHTML = "";
+  CONFIG.sheets.filter(s => s.enabled).forEach(s => {
     const btn = document.createElement("button");
-    btn.className = "tab";
-    btn.type = "button";
-    btn.textContent = t.title;
-    btn.dataset.gid = String(t.gid);
-    btn.addEventListener("click", () => setActiveTab(t));
-    UI.tabs.appendChild(btn);
-  }
-  updateActiveTabUI();
-}
-
-function updateActiveTabUI(){
-  const gid = state.active?.gid;
-  [...UI.tabs.children].forEach(el => {
-    el.classList.toggle("active", Number(el.dataset.gid) === gid);
+    btn.className = "sheet-link";
+    btn.textContent = s.label;
+    btn.addEventListener("click", () => openSheet(s.key));
+    nav.appendChild(btn);
   });
-  UI.statSheet.textContent = state.active?.title ?? "-";
 }
 
-function renderFooterSummaries(headers, visibleRows){
-  const sheetCfg = CONFIG.sheets[state.active?.title] || {};
-  const totalsCols = sheetCfg.summarize || [];
-  if (!totalsCols.length){ UI.tableFooter.classList.add("hidden"); UI.tableFooter.innerHTML = ""; return; }
+function buildHomeCards(){
+  const wrap = qs("#sheet-cards");
+  wrap.innerHTML = "";
+  CONFIG.sheets.filter(s => s.enabled).forEach(async (s) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-head">
+        <div class="card-title">${escapeHtml(s.label)}</div>
+        <span class="badge-mini">${escapeHtml(shortName(s.key))}</span>
+      </div>
+      <div class="card-meta">
+        <span id="meta-${cssId(s.key)}-rows"><i class="fas fa-spinner fa-spin"></i> Linhas…</span>
+        <span id="meta-${cssId(s.key)}-cols"><i class="fas fa-spinner fa-spin"></i> Colunas…</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn" id="open-${cssId(s.key)}"><i class="fas fa-eye"></i> Ver dados</button>
+      </div>
+    `;
+    wrap.appendChild(card);
+    card.querySelector(`#open-${cssId(s.key)}`).addEventListener("click", () => openSheet(s.key));
 
-  const sums = {};
-  for (const col of totalsCols) sums[col] = 0;
+    // Pré-carrega contagem (não trava a UI)
+    try{
+      const { headers, rows } = await loadSheet(s.key, { metadataOnly:false, partial:true });
+      qs(`#meta-${cssId(s.key)}-rows`).innerHTML = `<i class="fas fa-database"></i> ${rows.length} linhas`;
+      qs(`#meta-${cssId(s.key)}-cols`).innerHTML = `<i class="fas fa-table-columns"></i> ${headers.length} colunas`;
+    }catch(e){
+      qs(`#meta-${cssId(s.key)}-rows`).textContent = "Erro ao ler";
+      qs(`#meta-${cssId(s.key)}-cols`).textContent = "";
+    }
+  });
+}
 
-  for (const row of visibleRows){
-    for (const col of totalsCols){
-      const v = Number(row[col]);
-      if (!isNaN(v)) sums[col] += v;
+/* =========================
+   ABERTURA DE ABA
+========================= */
+async function openSheet(sheetName){
+  // UI
+  go("data");
+  location.hash = `sheet:${encodeURIComponent(sheetName)}`;
+  qs("#sheet-title span").textContent = sheetName;
+  qs("#table-head").innerHTML = "";
+  qs("#table-body").innerHTML = "";
+  qs("#table-spinner").style.display = "block";
+  setStats({rows:0, cols:0, pages:1, visible:0});
+  toast("Carregando dados…");
+
+  try{
+    const { headers, rows } = await loadSheet(sheetName);
+    state.currentSheet = sheetName;
+    state.page = 1;
+    state.search = "";
+    state.filterColumn = "";
+    state.filterValue = "";
+    state.sort = { col: null, dir: "asc" };
+    state.numericColumns = inferNumericColumns(rows, headers);
+    populateControls(headers);
+    renderCurrent();
+  }catch(err){
+    qs("#table-spinner").style.display = "none";
+    toast(`Erro ao carregar: ${err.message}`, true);
+  }
+}
+
+/* =========================
+   BUSCA, FILTRO, ORDENAÇÃO
+========================= */
+function applyAllTransforms(rows, headers){
+  let out = rows;
+
+  // filtro por coluna (exato, case-insensitive)
+  if (state.filterColumn && state.filterValue) {
+    const idx = headers.indexOf(state.filterColumn);
+    if (idx >= 0) {
+      const v = String(state.filterValue).toLowerCase();
+      out = out.filter(r => String(r[idx] ?? "").toLowerCase() === v);
     }
   }
 
-  UI.tableFooter.classList.remove("hidden");
-  UI.tableFooter.innerHTML = Object.entries(sums).map(([k, v])=>{
-    const fmt = (CONFIG.sheets[state.active?.title]?.formats||{})[k];
-    const val = formatValue(k, fmt ? v : v); // formata se houver config
-    return `<div>${k}: <strong>${val}</strong></div>`;
-  }).join("");
+  // busca fulltext
+  if (state.search) {
+    const term = state.search.toLowerCase();
+    out = out.filter(r => r.some(cell => String(cell ?? "").toLowerCase().includes(term)));
+  }
+
+  // ordenação estável
+  if (state.sort.col !== null) {
+    const idx = headers.indexOf(state.sort.col);
+    const dir = state.sort.dir === "desc" ? -1 : 1;
+    out = stableSort(out, (a,b) => compareSmart(a[idx], b[idx]) * dir);
+  }
+
+  return out;
 }
 
-function renderTable({ headers, rows }){
-  // busca na página
-  let filtered = rows;
-  if (state.searchTerm){
-    const term = state.searchTerm.toLowerCase();
-    filtered = filtered.filter(r => headers.some(k => String(r[k] ?? "").toLowerCase().includes(term)));
-  }
+/* =========================
+   RENDERIZAÇÃO
+========================= */
+function renderCurrent(){
+  const sp = qs("#table-spinner");
+  sp.style.display = "none";
 
-  // sort
-  if (state.sortKey){
-    const k = state.sortKey, dir = state.sortDir;
-    filtered = [...filtered].sort((a,b)=>{
-      const va = a[k] ?? "", vb = b[k] ?? "";
-      if (va === vb) return 0;
-      return (va > vb ? 1 : -1) * (dir === "asc" ? 1 : -1);
-    });
-  }
+  const cache = state.dataCache.get(state.currentSheet);
+  if (!cache) return;
 
-  // constrói tabela
-  const table = document.createElement("table");
-  const thead = document.createElement("thead");
-  const trh = document.createElement("tr");
+  const headers = cache.headers;
+  const baseRows = cache.rows;
 
-  headers.forEach(col => {
-    const th = document.createElement("th");
-    th.textContent = col;
-    th.classList.add("sortable");
-    const ind = document.createElement("span");
-    ind.className = "sort-indicator";
-    ind.textContent = (state.sortKey === col) ? (state.sortDir === "asc" ? "▲" : "▼") : "↕";
-    th.appendChild(ind);
-    th.addEventListener("click", ()=>{
-      if (state.sortKey === col) {
-        state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
-      } else {
-        state.sortKey = col;
-        state.sortDir = "asc";
-      }
-      renderTable({ headers, rows: state.pageRows });
-    });
-    trh.appendChild(th);
-  });
-  thead.appendChild(trh);
-
-  const tbody = document.createElement("tbody");
-  if (!filtered.length){
-    const tr = document.createElement("tr");
-    const td = document.createElement("td");
-    td.colSpan = headers.length;
-    td.textContent = "Nenhum dado nesta página.";
-    tr.appendChild(td);
-    tbody.appendChild(tr);
-  } else {
-    for (const r of filtered){
-      const tr = document.createElement("tr");
-      for (const col of headers){
-        const td = document.createElement("td");
-        td.textContent = formatValue(col, r[col]) || "-";
-        tr.appendChild(td);
-      }
-      tbody.appendChild(tr);
-    }
-  }
-
-  table.appendChild(thead);
-  table.appendChild(tbody);
-  UI.tableContainer.innerHTML = "";
-  UI.tableContainer.appendChild(table);
-
-  // stats
-  UI.statCols.textContent = String(headers.length);
-  UI.statTotal.textContent = String(state.totalRows);
-  UI.statUpdated.textContent = fmtDateTime();
-
-  // tools habilitados
-  UI.searchInput.disabled = false;
-  UI.exportCSV.disabled = filtered.length === 0;
-  UI.exportAll.disabled = state.totalRows === 0;
-
-  // rodapé de somatórios (sobre linhas visíveis pós-busca/sort)
-  renderFooterSummaries(headers, filtered);
+  const rows = applyAllTransforms(baseRows, headers);
 
   // paginação
-  const totalPages = Math.max(1, Math.ceil(state.totalRows / state.rowsPerPage));
-  UI.pageInfo.textContent = `Página ${state.page} de ${totalPages}`;
-  UI.prevBtn.disabled = state.page <= 1;
-  UI.nextBtn.disabled = state.page >= totalPages;
+  const total = rows.length;
+  const pages = Math.max(1, Math.ceil(total / state.rowsPerPage));
+  state.page = clamp(state.page, 1, pages);
+  const start = (state.page - 1) * state.rowsPerPage;
+  const end = Math.min(start + state.rowsPerPage, total);
+  const pageRows = rows.slice(start, end);
 
-  // atualiza hash compartilhável
-  updateHash();
+  renderHeader(headers);
+  renderBodyChunked(pageRows, headers); // incremental para longas
+  updatePagination(pages, total);
+  setStats({rows: baseRows.length, cols: headers.length, pages, visible: total});
+  updateChartSelectors(headers);
+  drawChart();
 }
 
-/* ======================== Navegação/Hash ======================== */
-function updateHash(){
-  const params = new URLSearchParams();
-  if (state.active) params.set("gid", String(state.active.gid));
-  if (state.page > 1) params.set("page", String(state.page));
-  if (state.searchTerm) params.set("q", state.searchTerm);
-  if (state.sortKey) { params.set("sort", state.sortKey); params.set("dir", state.sortDir); }
-  history.replaceState(null, "", `#${params.toString()}`);
-}
-function restoreFromHash(){
-  const h = location.hash.replace(/^#/, "");
-  if (!h) return {};
-  const p = new URLSearchParams(h);
-  return {
-    gid: p.get("gid") ? Number(p.get("gid")) : null,
-    page: p.get("page") ? Number(p.get("page")) : 1,
-    q: p.get("q") || "",
-    sort: p.get("sort") || null,
-    dir: p.get("dir") || "asc",
-  };
+function renderHeader(headers){
+  const thead = qs("#table-head");
+  const tr = document.createElement("tr");
+  tr.append(...headers.map(h => {
+    const th = document.createElement("th");
+    th.className = "th-sort";
+    th.tabIndex = 0;
+    th.innerHTML = `${escapeHtml(h)} <span class="sort-icon"><i class="fas fa-sort"></i></span>`;
+    th.addEventListener("click", () => toggleSort(h));
+    th.addEventListener("keypress", (e) => { if (e.key === "Enter") toggleSort(h); });
+    return th;
+  }));
+  thead.innerHTML = "";
+  thead.appendChild(tr);
 }
 
-/* ========================== Controle =========================== */
-async function setActiveTab(tab){
-  state.active = tab;
-  // sort default por aba
-  const def = (CONFIG.sheets[tab.title] || {}).defaultSort;
-  state.sortKey = def?.key || null;
-  state.sortDir = def?.dir || "asc";
-  state.page = 1;
-  state.searchTerm = "";
-  UI.searchInput.value = "";
-  updateActiveTabUI();
-  await loadActivePage();
-}
+function renderBodyChunked(rows, headers){
+  const tbody = qs("#table-body");
+  tbody.innerHTML = "";
 
-async function loadActivePage(){
-  if (!state.active) return;
-  const { gid, title } = state.active;
-  const limit = state.rowsPerPage;
-  const offset = (state.page - 1) * limit;
-
-  try{
-    clearError();
-    setLoading(true);
-
-    // total
-    const ckCount = cacheKeyCount(SHEET_ID, gid, state.headerRows);
-    let total = cacheGet(ckCount, CONFIG.global.cacheMinutes);
-    if (total == null){
-      total = await countRows(SHEET_ID, gid, state.headerRows);
-      cacheSet(ckCount, total);
-    }
-    state.totalRows = Number(total) || 0;
-
-    // página
-    const ckPage = cacheKeyPage(SHEET_ID, gid, state.headerRows, state.page, limit);
-    let page = cacheGet(ckPage, CONFIG.global.cacheMinutes/2);
-    if (page == null){
-      page = await fetchPage(SHEET_ID, gid, state.headerRows, limit, offset);
-      cacheSet(ckPage, page);
-    }
-
-    // aplica config de colunas
-    const mapped = applyColumnConfig(page.headers, page.rows);
-    state.headers = mapped.headers;
-    state.pageRows = mapped.rows;
-
-    renderTable({ headers: state.headers, rows: state.pageRows });
-  } catch(err){
-    console.error(err);
-    showError(err?.message || "Erro ao carregar dados.");
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function connect(){
-  try{
-    clearError();
-    setLoading(true);
-
-    const tabs = await listWorksheets(SHEET_ID);
-    state.worksheets = tabs;
-
-    renderTabs(tabs);
-
-    // restauro do hash (gid, page, q, sort)
-    const saved = restoreFromHash();
-    let initial = tabs[0];
-    if (saved.gid){
-      const found = tabs.find(t => t.gid === saved.gid);
-      if (found) initial = found;
-    }
-
-    await setActiveTab(initial);
-
-    if (saved.page && saved.page > 1){
-      state.page = saved.page; await loadActivePage();
-    }
-    if (saved.q){
-      state.searchTerm = saved.q; UI.searchInput.value = saved.q;
-      renderTable({ headers: state.headers, rows: state.pageRows });
-    }
-    if (saved.sort){
-      state.sortKey = saved.sort; state.sortDir = saved.dir === "desc" ? "desc" : "asc";
-      renderTable({ headers: state.headers, rows: state.pageRows });
-    }
-  }catch(err){
-    console.error(err);
-    showError("Não foi possível acessar a planilha pública. Verifique as permissões de compartilhamento.");
-  }finally{
-    setLoading(false);
-  }
-}
-
-/* =========================== Eventos =========================== */
-UI.prevBtn.addEventListener("click", async ()=>{
-  if (state.page > 1){ state.page--; await loadActivePage(); }
-});
-UI.nextBtn.addEventListener("click", async ()=>{
-  const totalPages = Math.max(1, Math.ceil(state.totalRows / state.rowsPerPage));
-  if (state.page < totalPages){ state.page++; await loadActivePage(); }
-});
-UI.searchInput.addEventListener("input", debounce(()=>{
-  state.searchTerm = UI.searchInput.value.trim();
-  renderTable({ headers: state.headers, rows: state.pageRows });
-}, 200));
-
-UI.exportCSV.addEventListener("click", ()=>{
-  const headers = state.headers;
-  const term = state.searchTerm.toLowerCase();
-  let rows = state.pageRows;
-  if (term){
-    rows = rows.filter(r => headers.some(h => String(r[h] ?? "").toLowerCase().includes(term)));
-  }
-  // aplica ordenação atual
-  if (state.sortKey){
-    const k = state.sortKey, dir = state.sortDir;
-    rows = [...rows].sort((a,b)=>{
-      const va = a[k] ?? "", vb = b[k] ?? "";
-      if (va === vb) return 0;
-      return (va > vb ? 1 : -1) * (dir === "asc" ? 1 : -1);
-    });
-  }
-  const csv = toCSV(headers, rows);
-  const name = (state.active?.title||"dados").replace(/\s+/g,'_');
-  downloadFile(`${name}_p${state.page}.csv`, csv, "text/csv;charset=utf-8");
-});
-
-UI.exportAll.addEventListener("click", async ()=>{
-  if (!state.active) return;
-  const { gid } = state.active;
-  const limit = 500; // exporta em blocos maiores para reduzir requisições
-  const total = state.totalRows;
-  const pages = Math.max(1, Math.ceil(total / limit));
-
-  const allRows = [];
-  let headers = null;
-
-  setLoading(true);
-  try{
-    for (let p=1; p<=pages; p++){
-      const offset = (p-1)*limit;
-      const chunk = await fetchPage(SHEET_ID, gid, state.headerRows, limit, offset);
-      const mapped = applyColumnConfig(chunk.headers, chunk.rows);
-      headers = headers || mapped.headers;
-      allRows.push(...mapped.rows);
-    }
-    // aplica busca/ordenação atuais
-    let rows = allRows;
-    if (state.searchTerm){
-      const term = state.searchTerm.toLowerCase();
-      rows = rows.filter(r => headers.some(h => String(r[h] ?? "").toLowerCase().includes(term)));
-    }
-    if (state.sortKey){
-      const k = state.sortKey, dir = state.sortDir;
-      rows = [...rows].sort((a,b)=>{
-        const va = a[k] ?? "", vb = b[k] ?? "";
-        if (va === vb) return 0;
-        return (va > vb ? 1 : -1) * (dir === "asc" ? 1 : -1);
+  // chunked rendering para manter UI fluida
+  const CHUNK = 200;
+  let i = 0;
+  function renderChunk(deadline){
+    let count = 0;
+    while (i < rows.length && count < CHUNK) {
+      const tr = document.createElement("tr");
+      const r = rows[i];
+      r.forEach((cell, idx) => {
+        const td = document.createElement("td");
+        td.textContent = formatCell(cell);
+        tr.appendChild(td);
       });
+      tbody.appendChild(tr);
+      i++; count++;
     }
-    const csv = toCSV(headers, rows);
-    const name = (state.active?.title||"dados").replace(/\s+/g,'_');
-    downloadFile(`${name}_completo.csv`, csv, "text/csv;charset=utf-8");
-  } catch(err){
-    showError("Falha ao exportar tudo. Tente novamente.");
-  } finally {
-    setLoading(false);
+    if (i < rows.length) {
+      if ("requestIdleCallback" in window) {
+        requestIdleCallback(renderChunk);
+      } else {
+        setTimeout(renderChunk, 0);
+      }
+    }
   }
-});
+  renderChunk();
+}
 
-/* Inicialização */
-window.addEventListener("DOMContentLoaded", connect);
+function updatePagination(pages, total){
+  qs("#page-info").textContent = `Página ${state.page} de ${pages}`;
+  const prev = qs("#btn-prev");
+  const next = qs("#btn-next");
+  prev.disabled = state.page <= 1;
+  next.disabled = state.page >= pages;
+}
+
+function setStats({rows, cols, pages, visible}){
+  qs("#stat-rows").textContent = rows;
+  qs("#stat-cols").textContent = cols;
+  qs("#stat-pages").textContent = pages;
+  qs("#stat-visible").textContent = visible;
+  const stamp = new Date().toLocaleString();
+  qs("#last-update").textContent = `Atualizado: ${stamp}`;
+  state.lastUpdate = stamp;
+}
+
+function populateControls(headers){
+  // filtro por coluna
+  const colSel = qs("#filter-column");
+  colSel.innerHTML = `<option value="">(Todas)</option>` + headers.map(h => `<option value="${escapeHtml(h)}">${escapeHtml(h)}</option>`).join("");
+
+  // reset busca/filtros
+  qs("#search-input").value = "";
+  qs("#filter-value").value = "";
+
+  // múltipla escolha de colunas numéricas para gráficos
+  updateChartSelectors(headers);
+}
+
+/* =========================
+   CHARTS (Chart.js)
+========================= */
+let chartInstance = null;
+
+function updateChartSelectors(headers){
+  const select = qs("#chart-columns");
+  const cache = state.dataCache.get(state.currentSheet);
+  if (!cache) return;
+  const numeric = inferNumericColumns(cache.rows, headers);
+  state.numericColumns = numeric;
+  select.innerHTML = numeric.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  // Seleciona automaticamente até 2 séries na primeira carga
+  if (state.chartColumns.length === 0) {
+    state.chartColumns = numeric.slice(0, 2);
+    for (const opt of select.options) {
+      if (state.chartColumns.includes(opt.value)) opt.selected = true;
+    }
+  }
+}
+
+function drawChart(){
+  const canvas = qs("#chart-main");
+  const ctx = canvas.getContext("2d");
+  const cache = state.dataCache.get(state.currentSheet);
+  if (!cache) return;
+
+  const headers = cache.headers;
+  const rows = applyAllTransforms(cache.rows, headers);
+  const total = rows.length;
+  const start = (state.page - 1) * state.rowsPerPage;
+  const end = Math.min(start + state.rowsPerPage, total);
+  const pageRows = rows.slice(start, end);
+
+  // eixo X: índice da linha na página
+  const labels = pageRows.map((_, i) => `#${start + i + 1}`);
+
+  // datasets das colunas numéricas escolhidas
+  const datasets = state.chartColumns
+    .filter(c => headers.includes(c))
+    .slice(0, CONFIG.chartMaxSeries)
+    .map((colName, idx) => {
+      const ci = headers.indexOf(colName);
+      const data = pageRows.map(r => toNumber(r[ci]));
+      return {
+        label: colName,
+        data,
+        // NÃO definimos cores explicitamente (seguir instrução do ambiente)
+      };
+    });
+
+  // destruir anterior para evitar vazamento
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
+  }
+
+  chartInstance = new Chart(ctx, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "nearest", intersect: false },
+      plugins: { legend: { position: "top" }, tooltip: { enabled: true } },
+      scales: { x: { ticks: { autoSkip: true, maxTicksLimit: 12 } }, y: { beginAtZero: true } }
+    }
+  });
+}
+
+/* =========================
+   EXPORTAÇÃO CSV
+========================= */
+function exportCSV(){
+  const cache = state.dataCache.get(state.currentSheet);
+  if (!cache) return;
+
+  const headers = cache.headers;
+  const rows = applyAllTransforms(cache.rows, headers);
+  const lines = [
+    headers.map(csvEscape).join(","),
+    ...rows.map(r => r.map(csvEscape).join(","))
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${slugify(state.currentSheet)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* =========================
+   CARREGAMENTO DA PLANILHA (GViz JSON)
+========================= */
+async function loadSheet(sheetName, { metadataOnly=false, partial=false } = {}){
+  const cached = state.dataCache.get(sheetName);
+  const now = Date.now();
+  if (cached && (now - cached.ts < CONFIG.cacheTtlMs)) {
+    return cached;
+  }
+
+  const url = `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CONFIG.requestTimeoutMs);
+
+  let text;
+  try{
+    const res = await fetch(url, { signal: controller.signal, credentials: "omit", cache: "no-store" });
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    text = await res.text();
+  }catch(err){
+    clearTimeout(timeout);
+    throw new Error(`Falha de rede ou acesso (${err.message})`);
+  }
+
+  // Resposta vem como "google.visualization.Query.setResponse({...})"
+  const json = parseGViz(text);
+  if (!json || !json.table || !Array.isArray(json.table.cols) || !Array.isArray(json.table.rows)) {
+    throw new Error("Formato inesperado da resposta");
+  }
+
+  const headers = json.table.cols.map(c => c && (c.label || c.id) || "").map(String);
+  const rows = json.table.rows.map(r => normalizeRow(r, headers.length));
+
+  const payload = { headers, rows, ts: now };
+  state.dataCache.set(sheetName, payload);
+  return payload;
+}
+
+function parseGViz(raw){
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end === -1) return null;
+  try { return JSON.parse(raw.slice(start, end + 1)); }
+  catch { return null; }
+}
+
+/* =========================
+   NORMALIZAÇÃO E TIPAGEM
+========================= */
+function normalizeRow(rowObj, headerLen){
+  const out = new Array(headerLen).fill("");
+  const cells = rowObj?.c || [];
+  for (let i=0; i<headerLen; i++){
+    const cell = cells[i];
+    if (!cell) { out[i] = ""; continue; }
+    // valor cru
+    let v = cell.v;
+    // datas do GViz vêm como objetos de data em alguns casos -> converte para ISO curto
+    if (cell.f && isLikelyDateFormat(cell.f, v)) {
+      out[i] = formatAsDate(v);
+      continue;
+    }
+    if (typeof v === "object" && v !== null && "f" in cell && "v" in cell) {
+      // fallback
+    }
+    out[i] = v == null ? "" : v;
+  }
+  return out;
+}
+
+function isLikelyDateFormat(fmt, val){
+  // heurística simples
+  return /\by\b|\bY\b|dd|mm|mmm|yyyy|\/|-/.test(fmt) || (typeof val === "string" && /\d{2,4}[\/-]\d{1,2}[\/-]\d{1,2}/.test(val));
+}
+
+function formatAsDate(v){
+  try{
+    const d = new Date(v);
+    if (!isNaN(d)) return d.toISOString().slice(0,10);
+    return String(v);
+  }catch{ return String(v); }
+}
+
+function inferNumericColumns(rows, headers){
+  const n = Math.min(rows.length, 200); // amostra
+  const numeric = [];
+  for (let c=0; c<headers.length; c++){
+    let count = 0, valid = 0;
+    for (let r=0; r<n; r++){
+      const x = rows[r][c];
+      if (x === "" || x === null || typeof x === "undefined") continue;
+      valid++;
+      if (!isNaN(toNumber(x))) count++;
+    }
+    if (valid > 0 && count / valid >= 0.9) numeric.push(headers[c]);
+  }
+  return numeric;
+}
+
+/* =========================
+   SORT / COMPARE / HELPERS
+========================= */
+function toggleSort(col){
+  if (state.sort.col === col) {
+    state.sort.dir = state.sort.dir === "asc" ? "desc" : "asc";
+  } else {
+    state.sort.col = col;
+    state.sort.dir = "asc";
+  }
+  state.page = 1;
+  renderCurrent();
+}
+
+function stableSort(arr, cmp){
+  const a = arr.map((v,i) => [v,i]);
+  a.sort((x,y) => {
+    const res = cmp(x[0], y[0]);
+    return res !== 0 ? res : x[1] - y[1];
+  });
+  return a.map(x => x[0]);
+}
+
+function compareSmart(a, b){
+  // tenta numérico, data, depois string
+  const na = toNumber(a), nb = toNumber(b);
+  if (!isNaN(na) && !isNaN(nb)) return na - nb;
+  const da = Date.parse(a), db = Date.parse(b);
+  if (!isNaN(da) && !isNaN(db)) return da - db;
+  return String(a ?? "").localeCompare(String(b ?? ""), "pt-BR", { sensitivity:"base" });
+}
+
+function toNumber(x){
+  if (typeof x === "number") return x;
+  if (typeof x !== "string") return NaN;
+  // converte formatos pt-BR como "1.234,56"
+  const s = x.replace(/\./g,"").replace(",",".").replace(/[^\d.-]/g,"");
+  const n = Number(s);
+  return isNaN(n) ? NaN : n;
+}
+
+function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+function debounce(fn, ms=150){
+  let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn(...args), ms); };
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
+function slugify(s){ return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/gi,"-").replace(/(^-|-$)/g,"").toLowerCase(); }
+function csvEscape(v){
+  const s = String(v ?? "");
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+  return s;
+}
+function cssId(s){ return slugify(s); }
+function shortName(s){
+  return s.length > 22 ? s.slice(0,19) + "…" : s;
+}
+
+function formatCell(v){
+  if (v === true) return "SIM";
+  if (v === false) return "NÃO";
+  return String(v ?? "");
+}
+
+/* =========================
+   UX
+========================= */
+let toastTimer = null;
+function toast(msg, isError=false){
+  const el = qs("#toast");
+  el.textContent = msg;
+  el.style.background = isError ? "#991b1b" : "#0f172a";
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> el.classList.remove("show"), 2800);
+}
