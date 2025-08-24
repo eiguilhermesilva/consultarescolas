@@ -1,65 +1,85 @@
-/* SheetsDB — app.js
- * Robust loader for public Google Sheets on GitHub Pages
- * - Lists tabs (worksheets) via public v3 feed (no API key)
- * - Loads data via GViz Query with server-side pagination (limit/offset)
- * - Sorting, search (page-level), CSV export, caching and good errors
+/* app.js – Apresentação fixa de uma planilha específica (somente leitura)
+ * Recursos:
+ * - Lista abas públicas automaticamente
+ * - Paginação servidor (limit/offset via GViz)
+ * - Ordenação por coluna, busca (na página), exportar CSV (página e tudo)
+ * - Cache leve em localStorage
+ * - Configuração por aba: renomear/ocultar/ordenar colunas, sort padrão, somatórios, formatação
  */
 
-const UI = {
-  idInput: document.getElementById("sheet-id"),
-  loadBtn: document.getElementById("load-btn"),
-  resetBtn: document.getElementById("reset-btn"),
-  rowsPerPageSel: document.getElementById("rows-per-page"),
-  headerRowsSel: document.getElementById("header-rows"),
-  cacheToggle: document.getElementById("cache-toggle"),
+const SHEET_ID = "1fD4DMjR_5iRgTpKsS27McaV_tdbCTk50HKScpNyW7_U"; // <- o seu ID FIXO
 
+/* ====================== CONFIGURAÇÃO ============================
+ * Personalize a exibição por aba (título da guia exatamente como no Sheets)
+ * - columns.order: define a ordem das colunas
+ * - columns.rename: renomeia cabeçalhos
+ * - columns.hide: oculta colunas
+ * - defaultSort: { key: "Nome da Coluna", dir: "asc"|"desc" }
+ * - summarize: lista de colunas numéricas para totalizar (exibe no rodapé)
+ * - formats: { "Coluna": "number"|"currency"|"percent"|"date" }
+ */
+const CONFIG = {
+  global: {
+    rowsPerPage: 50,     // padrão
+    headerRows: 1,       // quantas linhas são cabeçalho
+    currency: { style: "currency", currency: "BRL", minimumFractionDigits: 2 },
+    number: { maximumFractionDigits: 2 },
+    percent: { style: "percent", maximumFractionDigits: 2 },
+    locale: "pt-BR",
+    cacheMinutes: 10,
+  },
+  // Exemplo de configuração por aba (ajuste os nomes das abas depois de carregar uma vez e ver os títulos)
+  sheets: {
+    // "Vendas 2025": {
+    //   columns: {
+    //     order: ["Data", "Cliente", "Produto", "Quantidade", "Preço", "Total"],
+    //     rename: { "Preço": "Preço (R$)" },
+    //     hide: ["Observações"]
+    //   },
+    //   defaultSort: { key: "Data", dir: "desc" },
+    //   summarize: ["Total"],
+    //   formats: { "Data": "date", "Preço": "currency", "Total": "currency", "Quantidade": "number" }
+    // }
+  }
+};
+
+/* ====================== Seletores de UI ======================== */
+const UI = {
   error: document.getElementById("error"),
   tabs: document.getElementById("tabs"),
   tableContainer: document.getElementById("table-container"),
   tableLoader: document.getElementById("table-loader"),
+  tableFooter: document.getElementById("table-footer"),
   searchInput: document.getElementById("search-input"),
   exportCSV: document.getElementById("export-csv"),
-
+  exportAll: document.getElementById("export-all"),
   statTotal: document.getElementById("stat-total"),
   statCols: document.getElementById("stat-cols"),
   statSheet: document.getElementById("stat-sheet"),
   statUpdated: document.getElementById("stat-updated"),
-
   prevBtn: document.getElementById("prev"),
   nextBtn: document.getElementById("next"),
   pageInfo: document.getElementById("page-info"),
 };
 
+/* ========================= Estado ============================== */
 const state = {
-  sheetId: "",
   worksheets: /** @type {Array<{title:string,gid:number}>} */ ([]),
   active: /** @type {{title:string,gid:number}|null} */ (null),
-
-  rowsPerPage: 25,
-  headerRows: 1,
-  useCache: true,
-
-  // pagination
+  rowsPerPage: CONFIG.global.rowsPerPage,
+  headerRows: CONFIG.global.headerRows,
   page: 1,
-  totalRowsEstimate: 0,
-
-  // data of current page
+  totalRows: 0,
   headers: /** @type {string[]} */ ([]),
   pageRows: /** @type {Array<Record<string, any>>} */ ([]),
-
-  // sorting
   sortKey: null,
   sortDir: "asc",
-
-  // search
   searchTerm: "",
 };
 
-const CACHE_PREFIX = "sheetsdb:v2:";
+const CACHE_PREFIX = "sheet-fixed:v1:";
 
-/* -------------------------- Utilities --------------------------- */
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
+/* ========================= Utils =============================== */
 function showError(msg) {
   UI.error.textContent = msg;
   UI.error.classList.remove("hidden");
@@ -68,112 +88,97 @@ function clearError() {
   UI.error.classList.add("hidden");
   UI.error.textContent = "";
 }
-
 function setLoading(loading) {
   UI.tableLoader.classList.toggle("hidden", !loading);
   UI.tableLoader.setAttribute("aria-hidden", loading ? "false" : "true");
 }
-
 function fmtDateTime(d = new Date()) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "medium",
-  }).format(d);
+  return new Intl.DateTimeFormat(CONFIG.global.locale, { dateStyle: "short", timeStyle: "medium" }).format(d);
 }
-
-function debounce(fn, ms=250){
-  let t; 
-  return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
-}
+function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
 
 function toCSV(headers, rows){
-  const escape = (v) => {
+  const esc = (v)=> {
     if (v == null) return "";
     const s = String(v);
-    if (/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
-    return s;
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
   };
-  const lines = [];
-  lines.push(headers.map(escape).join(","));
-  for (const r of rows){
-    lines.push(headers.map(h => escape(r[h])).join(","));
-  }
+  const lines = [headers.map(esc).join(",")];
+  for (const r of rows) lines.push(headers.map(h=>esc(r[h])).join(","));
   return lines.join("\n");
 }
-
 function downloadFile(filename, content, mime="text/plain;charset=utf-8"){
   const blob = new Blob([content], {type: mime});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  const a = Object.assign(document.createElement("a"), { href: url, download: filename });
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
-/* ----------------------- Sheets Fetchers ------------------------ */
-/** Try to list worksheets (tabs) using the legacy public feed.
- * Works on publicly shared sheets.
- * Returns [{title, gid}]
- */
-async function listWorksheets(sheetId){
-  // Strategy A: v3 public feed (no key)
-  const feedUrl = `https://spreadsheets.google.com/feeds/worksheets/${sheetId}/public/full?alt=json`;
+/* ==================== Formatação de valores ==================== */
+function formatValue(col, value){
+  const sheetCfg = CONFIG.sheets[state.active?.title] || {};
+  const fmt = (sheetCfg.formats && sheetCfg.formats[col]) || null;
+  if (value == null || value === "") return "";
   try{
-    const res = await fetch(feedUrl, { mode: "cors" });
+    switch(fmt){
+      case "currency": return new Intl.NumberFormat(CONFIG.global.locale, CONFIG.global.currency).format(Number(value));
+      case "percent": return new Intl.NumberFormat(CONFIG.global.locale, CONFIG.global.percent).format(Number(value));
+      case "number":  return new Intl.NumberFormat(CONFIG.global.locale, CONFIG.global.number).format(Number(value));
+      case "date": {
+        // Tenta tratar tanto número serial do Google quanto string
+        if (typeof value === "number") {
+          // Serial do Google (dias desde 1899-12-30)
+          const epoch = new Date(Date.UTC(1899, 11, 30));
+          const ms = value * 86400000;
+          const d = new Date(epoch.getTime() + ms);
+          return new Intl.DateTimeFormat(CONFIG.global.locale).format(d);
+        }
+        const d = new Date(value);
+        return isNaN(+d) ? String(value) : new Intl.DateTimeFormat(CONFIG.global.locale).format(d);
+      }
+      default: return String(value);
+    }
+  } catch { return String(value); }
+}
+
+/* ==================== Acesso ao Google Sheets ================== */
+async function listWorksheets(sheetId){
+  const url = `https://spreadsheets.google.com/feeds/worksheets/${sheetId}/public/full?alt=json`;
+  try{
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     const entries = json?.feed?.entry ?? [];
-    if (!entries.length) throw new Error("Sem abas públicas visíveis.");
     const tabs = [];
     for (const e of entries){
       const title = e?.title?.$t ?? "Sem título";
-      // Try to get gid from links (alternate/edit link usually contains gid=)
-      const links = e?.link ?? [];
       let gid = null;
-      for (const l of links){
-        const href = l?.href || "";
-        const m = href.match(/[?&#]gid=(\d+)/);
+      for (const l of (e?.link || [])){
+        const m = (l?.href || "").match(/[?&#]gid=(\d+)/);
         if (m) { gid = Number(m[1]); break; }
       }
-      // Fallback: try "gs$gid"
       if (gid == null && e["gs$gid"]) gid = Number(e["gs$gid"]);
-      // As último recurso, mapear 'od6' -> 0 (antigo padrão)
       if (gid == null && /\/od6$/.test(e?.id?.$t || "")) gid = 0;
-
-      if (gid == null) continue; // não conseguimos usar sem gid
-      tabs.push({ title, gid });
+      if (gid != null) tabs.push({ title, gid });
     }
-    if (tabs.length) return tabs;
-    throw new Error("Não foi possível extrair GIDs das abas.");
-  } catch(err){
-    // Strategy B: Single-sheet fallback (we will still load gid 0)
-    console.warn("listWorksheets fallback:", err);
+    if (!tabs.length) throw new Error("Nenhuma aba pública encontrada.");
+    return tabs;
+  }catch(e){
+    console.warn("Falha ao listar abas, usando fallback gid=0", e);
     return [{ title: "Planilha 1", gid: 0 }];
   }
 }
 
-/** Build GViz query URL */
-function gvizUrl({ sheetId, gid, headerRows, query }){
-  const params = new URLSearchParams({
-    tqx: "out:json",
-    gid: String(gid),
-    headers: String(headerRows),
-  });
-  if (query) params.set("tq", query);
-  return `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?${params.toString()}`;
+function gvizUrl({ sheetId, gid, headers, query }){
+  const p = new URLSearchParams({ tqx: "out:json", gid: String(gid), headers: String(headers) });
+  if (query) p.set("tq", query);
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?${p.toString()}`;
 }
-
-/** Parse GViz JSON text into object */
 function parseGviz(text){
-  // GViz returns: google.visualization.Query.setResponse({...});
   const json = JSON.parse(text.replace(/^[^{]+/, "").replace(/;?\s*$/, ""));
   if (json.status !== "ok") throw new Error(json?.errors?.[0]?.detailed_message || "Erro GViz");
   return json;
 }
-
-/** Convert GViz table to rows+headers */
 function tableToRows(table){
   const cols = table.cols || [];
   const headers = cols.map((c, i) => c.label || c.id || `Col${i+1}`);
@@ -182,40 +187,80 @@ function tableToRows(table){
     const obj = {};
     (r.c || []).forEach((cell, idx) => {
       let v = cell?.v ?? "";
-      // normalize dates
-      if (cell?.f && /(^\d{1,2}\/\d{1,2}\/\d{2,4}$)/.test(cell.f)) v = cell.f;
+      // preserva strings formatadas quando existirem
+      if (cell?.f && typeof cell.v === "number") v = cell.v; // manter número cru; formatamos depois
       obj[headers[idx]] = v;
     });
     rows.push(obj);
   }
   return { headers, rows };
 }
-
-/** Count total rows using first column (A) */
-async function countRows(sheetId, gid, headerRows){
-  const q = "select count(A)";
-  const url = gvizUrl({ sheetId, gid, headerRows, query: q });
+async function countRows(sheetId, gid, headers){
+  const url = gvizUrl({ sheetId, gid, headers, query: "select count(A)" });
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Falha ao contar registros (gid ${gid}).`);
+  if (!res.ok) throw new Error("Falha ao contar registros.");
   const json = parseGviz(await res.text());
   const cell = json?.table?.rows?.[0]?.c?.[0];
-  const count = Number(cell?.v ?? 0);
-  // Subtrair cabeçalho se for headerRows > 0? GViz já considera headerRows para labels.
-  // A contagem retorna linhas de dados (desconsidera cabeçalhos). Ok.
-  return count || 0;
+  return Number(cell?.v ?? 0);
 }
-
-/** Fetch a page (limit/offset) */
-async function fetchPage(sheetId, gid, headerRows, limit, offset){
+async function fetchPage(sheetId, gid, headers, limit, offset){
   const q = `select * limit ${limit} offset ${offset}`;
-  const url = gvizUrl({ sheetId, gid, headerRows, query: q });
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Falha ao carregar página (gid ${gid}).`);
+  const res = await fetch(gvizUrl({ sheetId, gid, headers, query: q }));
+  if (!res.ok) throw new Error("Falha ao carregar página.");
   const json = parseGviz(await res.text());
   return tableToRows(json.table);
 }
 
-/* --------------------------- Renderers -------------------------- */
+/* ========================== Cache ============================== */
+function cacheKeyPage(sheetId, gid, headerRows, page, limit){
+  return `${CACHE_PREFIX}${sheetId}:${gid}:h${headerRows}:p${page}:l${limit}`;
+}
+function cacheKeyCount(sheetId, gid, headerRows){
+  return `${CACHE_PREFIX}${sheetId}:${gid}:count:h${headerRows}`;
+}
+function cacheGet(key, maxMinutes){
+  try{
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const { t, v } = JSON.parse(raw);
+    if ((Date.now() - t) > maxMinutes*60*1000) return null;
+    return v;
+  }catch{ return null; }
+}
+function cacheSet(key, value){
+  try{ localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: value })); }catch{}
+}
+
+/* ======================== Renderização ========================= */
+function applyColumnConfig(headers, rows){
+  const sheetCfg = CONFIG.sheets[state.active?.title] || {};
+  const rename = sheetCfg.columns?.rename || {};
+  const hide = new Set(sheetCfg.columns?.hide || []);
+  let ordered = [...headers];
+
+  if (Array.isArray(sheetCfg.columns?.order) && sheetCfg.columns.order.length){
+    const orderSet = new Set(sheetCfg.columns.order);
+    const rest = ordered.filter(h => !orderSet.has(h) && !hide.has(h));
+    ordered = sheetCfg.columns.order.filter(h => !hide.has(h)).concat(rest);
+  } else {
+    ordered = ordered.filter(h => !hide.has(h));
+  }
+
+  const finalHeaders = ordered.map(h => rename[h] || h);
+
+  // mapeia valores com possíveis renomes
+  const mappedRows = rows.map(r=>{
+    const out = {};
+    for (const h of ordered){
+      const newKey = rename[h] || h;
+      out[newKey] = r[h];
+    }
+    return out;
+  });
+
+  return { headers: finalHeaders, rows: mappedRows };
+}
+
 function renderTabs(tabs){
   UI.tabs.innerHTML = "";
   for (const t of tabs){
@@ -238,15 +283,35 @@ function updateActiveTabUI(){
   UI.statSheet.textContent = state.active?.title ?? "-";
 }
 
-function renderTable({ headers, rows }){
-  const hasRows = rows.length > 0;
-  const h = headers;
+function renderFooterSummaries(headers, visibleRows){
+  const sheetCfg = CONFIG.sheets[state.active?.title] || {};
+  const totalsCols = sheetCfg.summarize || [];
+  if (!totalsCols.length){ UI.tableFooter.classList.add("hidden"); UI.tableFooter.innerHTML = ""; return; }
 
-  // search (page-level)
+  const sums = {};
+  for (const col of totalsCols) sums[col] = 0;
+
+  for (const row of visibleRows){
+    for (const col of totalsCols){
+      const v = Number(row[col]);
+      if (!isNaN(v)) sums[col] += v;
+    }
+  }
+
+  UI.tableFooter.classList.remove("hidden");
+  UI.tableFooter.innerHTML = Object.entries(sums).map(([k, v])=>{
+    const fmt = (CONFIG.sheets[state.active?.title]?.formats||{})[k];
+    const val = formatValue(k, fmt ? v : v); // formata se houver config
+    return `<div>${k}: <strong>${val}</strong></div>`;
+  }).join("");
+}
+
+function renderTable({ headers, rows }){
+  // busca na página
   let filtered = rows;
   if (state.searchTerm){
     const term = state.searchTerm.toLowerCase();
-    filtered = filtered.filter(r => h.some(k => String(r[k] ?? "").toLowerCase().includes(term)));
+    filtered = filtered.filter(r => headers.some(k => String(r[k] ?? "").toLowerCase().includes(term)));
   }
 
   // sort
@@ -259,12 +324,12 @@ function renderTable({ headers, rows }){
     });
   }
 
-  // build table
+  // constrói tabela
   const table = document.createElement("table");
   const thead = document.createElement("thead");
   const trh = document.createElement("tr");
 
-  h.forEach(col => {
+  headers.forEach(col => {
     const th = document.createElement("th");
     th.textContent = col;
     th.classList.add("sortable");
@@ -279,27 +344,26 @@ function renderTable({ headers, rows }){
         state.sortKey = col;
         state.sortDir = "asc";
       }
-      renderTable({ headers: h, rows: state.pageRows });
+      renderTable({ headers, rows: state.pageRows });
     });
     trh.appendChild(th);
   });
   thead.appendChild(trh);
 
   const tbody = document.createElement("tbody");
-  if (!hasRows){
+  if (!filtered.length){
     const tr = document.createElement("tr");
     const td = document.createElement("td");
-    td.colSpan = h.length;
+    td.colSpan = headers.length;
     td.textContent = "Nenhum dado nesta página.";
     tr.appendChild(td);
     tbody.appendChild(tr);
   } else {
     for (const r of filtered){
       const tr = document.createElement("tr");
-      for (const col of h){
+      for (const col of headers){
         const td = document.createElement("td");
-        const v = r[col];
-        td.textContent = v == null || v === "" ? "-" : String(v);
+        td.textContent = formatValue(col, r[col]) || "-";
         tr.appendChild(td);
       }
       tbody.appendChild(tr);
@@ -312,44 +376,58 @@ function renderTable({ headers, rows }){
   UI.tableContainer.appendChild(table);
 
   // stats
-  UI.statCols.textContent = String(h.length);
-  UI.statTotal.textContent = String(state.totalRowsEstimate);
+  UI.statCols.textContent = String(headers.length);
+  UI.statTotal.textContent = String(state.totalRows);
   UI.statUpdated.textContent = fmtDateTime();
 
-  // enable tools
+  // tools habilitados
   UI.searchInput.disabled = false;
   UI.exportCSV.disabled = filtered.length === 0;
+  UI.exportAll.disabled = state.totalRows === 0;
 
-  // pagination info
-  const totalPages = Math.max(1, Math.ceil(state.totalRowsEstimate / state.rowsPerPage));
+  // rodapé de somatórios (sobre linhas visíveis pós-busca/sort)
+  renderFooterSummaries(headers, filtered);
+
+  // paginação
+  const totalPages = Math.max(1, Math.ceil(state.totalRows / state.rowsPerPage));
   UI.pageInfo.textContent = `Página ${state.page} de ${totalPages}`;
   UI.prevBtn.disabled = state.page <= 1;
   UI.nextBtn.disabled = state.page >= totalPages;
+
+  // atualiza hash compartilhável
+  updateHash();
 }
 
-/* --------------------------- Cache ------------------------------ */
-function cacheKeyPage(sheetId, gid, headerRows, page, limit){
-  return `${CACHE_PREFIX}${sheetId}:${gid}:h${headerRows}:p${page}:l${limit}`;
+/* ======================== Navegação/Hash ======================== */
+function updateHash(){
+  const params = new URLSearchParams();
+  if (state.active) params.set("gid", String(state.active.gid));
+  if (state.page > 1) params.set("page", String(state.page));
+  if (state.searchTerm) params.set("q", state.searchTerm);
+  if (state.sortKey) { params.set("sort", state.sortKey); params.set("dir", state.sortDir); }
+  history.replaceState(null, "", `#${params.toString()}`);
 }
-function cacheSet(key, value){
-  try{ localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: value })); }catch{}
-}
-function cacheGet(key, maxAgeMs=5*60*1000){
-  try{
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const { t, v } = JSON.parse(raw);
-    if (Date.now() - t > maxAgeMs) return null;
-    return v;
-  }catch{ return null; }
+function restoreFromHash(){
+  const h = location.hash.replace(/^#/, "");
+  if (!h) return {};
+  const p = new URLSearchParams(h);
+  return {
+    gid: p.get("gid") ? Number(p.get("gid")) : null,
+    page: p.get("page") ? Number(p.get("page")) : 1,
+    q: p.get("q") || "",
+    sort: p.get("sort") || null,
+    dir: p.get("dir") || "asc",
+  };
 }
 
-/* ------------------------ Controller Flow ----------------------- */
+/* ========================== Controle =========================== */
 async function setActiveTab(tab){
-  if (!tab) return;
   state.active = tab;
+  // sort default por aba
+  const def = (CONFIG.sheets[tab.title] || {}).defaultSort;
+  state.sortKey = def?.key || null;
+  state.sortDir = def?.dir || "asc";
   state.page = 1;
-  state.sortKey = null; state.sortDir = "asc";
   state.searchTerm = "";
   UI.searchInput.value = "";
   updateActiveTabUI();
@@ -358,7 +436,6 @@ async function setActiveTab(tab){
 
 async function loadActivePage(){
   if (!state.active) return;
-
   const { gid, title } = state.active;
   const limit = state.rowsPerPage;
   const offset = (state.page - 1) * limit;
@@ -367,149 +444,97 @@ async function loadActivePage(){
     clearError();
     setLoading(true);
 
-    // total rows (estimate) — cache per gid
-    const totalKey = `${CACHE_PREFIX}${state.sheetId}:${gid}:count:h${state.headerRows}`;
-    let total = state.useCache ? cacheGet(totalKey, 10*60*1000) : null;
+    // total
+    const ckCount = cacheKeyCount(SHEET_ID, gid, state.headerRows);
+    let total = cacheGet(ckCount, CONFIG.global.cacheMinutes);
     if (total == null){
-      total = await countRows(state.sheetId, gid, state.headerRows);
-      cacheSet(totalKey, total);
+      total = await countRows(SHEET_ID, gid, state.headerRows);
+      cacheSet(ckCount, total);
     }
-    state.totalRowsEstimate = Number(total) || 0;
+    state.totalRows = Number(total) || 0;
 
-    // page data — cache per page
-    const pageKey = cacheKeyPage(state.sheetId, gid, state.headerRows, state.page, limit);
-    let page = state.useCache ? cacheGet(pageKey) : null;
+    // página
+    const ckPage = cacheKeyPage(SHEET_ID, gid, state.headerRows, state.page, limit);
+    let page = cacheGet(ckPage, CONFIG.global.cacheMinutes/2);
     if (page == null){
-      page = await fetchPage(state.sheetId, gid, state.headerRows, limit, offset);
-      cacheSet(pageKey, page);
+      page = await fetchPage(SHEET_ID, gid, state.headerRows, limit, offset);
+      cacheSet(ckPage, page);
     }
 
-    state.headers = page.headers;
-    state.pageRows = page.rows;
+    // aplica config de colunas
+    const mapped = applyColumnConfig(page.headers, page.rows);
+    state.headers = mapped.headers;
+    state.pageRows = mapped.rows;
 
     renderTable({ headers: state.headers, rows: state.pageRows });
   } catch(err){
     console.error(err);
-    showError(err?.message || "Erro ao carregar dados da aba.");
+    showError(err?.message || "Erro ao carregar dados.");
   } finally {
     setLoading(false);
   }
 }
 
-async function connect(sheetId){
+async function connect(){
   try{
     clearError();
     setLoading(true);
 
-    // List tabs
-    const tabs = await listWorksheets(sheetId);
+    const tabs = await listWorksheets(SHEET_ID);
     state.worksheets = tabs;
-    state.sheetId = sheetId;
 
     renderTabs(tabs);
-    if (tabs.length){
-      await setActiveTab(tabs[0]);
-    } else {
-      showError("Nenhuma aba pública encontrada.");
+
+    // restauro do hash (gid, page, q, sort)
+    const saved = restoreFromHash();
+    let initial = tabs[0];
+    if (saved.gid){
+      const found = tabs.find(t => t.gid === saved.gid);
+      if (found) initial = found;
     }
-  } catch(err){
+
+    await setActiveTab(initial);
+
+    if (saved.page && saved.page > 1){
+      state.page = saved.page; await loadActivePage();
+    }
+    if (saved.q){
+      state.searchTerm = saved.q; UI.searchInput.value = saved.q;
+      renderTable({ headers: state.headers, rows: state.pageRows });
+    }
+    if (saved.sort){
+      state.sortKey = saved.sort; state.sortDir = saved.dir === "desc" ? "desc" : "asc";
+      renderTable({ headers: state.headers, rows: state.pageRows });
+    }
+  }catch(err){
     console.error(err);
-    showError("Não foi possível acessar a planilha. Verifique se está pública e se o ID está correto.");
-  } finally {
+    showError("Não foi possível acessar a planilha pública. Verifique as permissões de compartilhamento.");
+  }finally{
     setLoading(false);
   }
 }
 
-/* --------------------------- Events ----------------------------- */
-UI.loadBtn.addEventListener("click", async () => {
-  const id = UI.idInput.value.trim();
-  if (!id){
-    showError("Informe um ID de planilha.");
-    return;
-  }
-  await connect(id);
-});
-
-UI.resetBtn.addEventListener("click", ()=>{
-  state.sheetId = "";
-  state.worksheets = [];
-  state.active = null;
-  state.page = 1;
-  state.headers = [];
-  state.pageRows = [];
-  state.totalRowsEstimate = 0;
-  state.sortKey = null; state.sortDir = "asc";
-  state.searchTerm = "";
-
-  UI.idInput.value = "";
-  UI.tabs.innerHTML = "";
-  UI.tableContainer.innerHTML = "";
-  UI.pageInfo.textContent = "Página 1 de 1";
-  UI.prevBtn.disabled = true;
-  UI.nextBtn.disabled = true;
-  UI.searchInput.value = "";
-  UI.searchInput.disabled = true;
-  UI.exportCSV.disabled = true;
-
-  UI.statTotal.textContent = "0";
-  UI.statCols.textContent = "0";
-  UI.statSheet.textContent = "-";
-  UI.statUpdated.textContent = "-";
-
-  clearError();
-});
-
-UI.rowsPerPageSel.addEventListener("change", async (e)=>{
-  state.rowsPerPage = Number(e.target.value);
-  state.page = 1;
-  await loadActivePage();
-});
-
-UI.headerRowsSel.addEventListener("change", async (e)=>{
-  state.headerRows = Number(e.target.value);
-  // invalidate count cache for this gid
-  if (state.active){
-    const { gid } = state.active;
-    const totalKey = `${CACHE_PREFIX}${state.sheetId}:${gid}:count:h${state.headerRows}`;
-    localStorage.removeItem(totalKey);
-  }
-  state.page = 1;
-  await loadActivePage();
-});
-
-UI.cacheToggle.addEventListener("change", (e)=>{
-  state.useCache = e.target.checked;
-});
-
+/* =========================== Eventos =========================== */
 UI.prevBtn.addEventListener("click", async ()=>{
-  if (state.page > 1){
-    state.page--;
-    await loadActivePage();
-  }
+  if (state.page > 1){ state.page--; await loadActivePage(); }
 });
 UI.nextBtn.addEventListener("click", async ()=>{
-  const totalPages = Math.max(1, Math.ceil(state.totalRowsEstimate / state.rowsPerPage));
-  if (state.page < totalPages){
-    state.page++;
-    await loadActivePage();
-  }
+  const totalPages = Math.max(1, Math.ceil(state.totalRows / state.rowsPerPage));
+  if (state.page < totalPages){ state.page++; await loadActivePage(); }
 });
-
 UI.searchInput.addEventListener("input", debounce(()=>{
   state.searchTerm = UI.searchInput.value.trim();
   renderTable({ headers: state.headers, rows: state.pageRows });
 }, 200));
 
 UI.exportCSV.addEventListener("click", ()=>{
-  // Exporta a página atual (após filtros/sort aplicados pela UI)
-  // Para exportar tudo, seria necessário iterar offsets (potencialmente pesado)
   const headers = state.headers;
   const term = state.searchTerm.toLowerCase();
   let rows = state.pageRows;
   if (term){
     rows = rows.filter(r => headers.some(h => String(r[h] ?? "").toLowerCase().includes(term)));
   }
-  // Aplica sort igual à UI
+  // aplica ordenação atual
   if (state.sortKey){
     const k = state.sortKey, dir = state.sortDir;
     rows = [...rows].sort((a,b)=>{
@@ -519,18 +544,52 @@ UI.exportCSV.addEventListener("click", ()=>{
     });
   }
   const csv = toCSV(headers, rows);
-  downloadFile(`${(state.active?.title||"dados").replace(/\s+/g,'_')}_p${state.page}.csv`, csv, "text/csv;charset=utf-8");
+  const name = (state.active?.title||"dados").replace(/\s+/g,'_');
+  downloadFile(`${name}_p${state.page}.csv`, csv, "text/csv;charset=utf-8");
 });
 
-/* UX: clique no exemplo para colar */
-document.addEventListener("click", (e)=>{
-  if (e.target instanceof HTMLElement && e.target.classList.contains("selectable")){
-    navigator.clipboard?.writeText(e.target.textContent.trim()).catch(()=>{});
-    UI.idInput.value = e.target.textContent.trim();
+UI.exportAll.addEventListener("click", async ()=>{
+  if (!state.active) return;
+  const { gid } = state.active;
+  const limit = 500; // exporta em blocos maiores para reduzir requisições
+  const total = state.totalRows;
+  const pages = Math.max(1, Math.ceil(total / limit));
+
+  const allRows = [];
+  let headers = null;
+
+  setLoading(true);
+  try{
+    for (let p=1; p<=pages; p++){
+      const offset = (p-1)*limit;
+      const chunk = await fetchPage(SHEET_ID, gid, state.headerRows, limit, offset);
+      const mapped = applyColumnConfig(chunk.headers, chunk.rows);
+      headers = headers || mapped.headers;
+      allRows.push(...mapped.rows);
+    }
+    // aplica busca/ordenação atuais
+    let rows = allRows;
+    if (state.searchTerm){
+      const term = state.searchTerm.toLowerCase();
+      rows = rows.filter(r => headers.some(h => String(r[h] ?? "").toLowerCase().includes(term)));
+    }
+    if (state.sortKey){
+      const k = state.sortKey, dir = state.sortDir;
+      rows = [...rows].sort((a,b)=>{
+        const va = a[k] ?? "", vb = b[k] ?? "";
+        if (va === vb) return 0;
+        return (va > vb ? 1 : -1) * (dir === "asc" ? 1 : -1);
+      });
+    }
+    const csv = toCSV(headers, rows);
+    const name = (state.active?.title||"dados").replace(/\s+/g,'_');
+    downloadFile(`${name}_completo.csv`, csv, "text/csv;charset=utf-8");
+  } catch(err){
+    showError("Falha ao exportar tudo. Tente novamente.");
+  } finally {
+    setLoading(false);
   }
 });
 
-/* Prefill with demo for convenience */
-window.addEventListener("DOMContentLoaded", ()=>{
-  UI.idInput.value = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms";
-});
+/* Inicialização */
+window.addEventListener("DOMContentLoaded", connect);
