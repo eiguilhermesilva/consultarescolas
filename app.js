@@ -3,7 +3,6 @@
 ========================= */
 const CONFIG = {
   spreadsheetId: "1fD4DMjR_5iRgTpKsS27McaV_tdbCTk50HKScpNyW7_U",
-  // Abas mapeadas manualmente (detectadas na planilha)
   sheets: [
     { key: "Consulte Escolas", label: "Consulte Escolas", enabled: true },
     { key: "Cadastros", label: "Cadastros", enabled: true },
@@ -14,15 +13,14 @@ const CONFIG = {
     { key: "Resumo Escolas", label: "Resumo Escolas", enabled: true },
     { key: "R 01 Metas Saeb 25", label: "R01 Metas Saeb 2025", enabled: true }
   ],
-  requestTimeoutMs: 30000,          // timeout de rede
+  requestTimeoutMs: 30000,
   defaultRowsPerPage: 25,
-  maxRowsPerPage: 1000,             // proteção
-  chartMaxSeries: 3,                // até 3 séries por gráfico
-  cacheTtlMs: 5 * 60 * 1000         // cache em memória/aba por 5 min
+  maxRowsPerPage: 1000,
+  cacheTtlMs: 5 * 60 * 1000
 };
 
 /* =========================
-   STATE & CACHES
+   STATE & HELPERS
 ========================= */
 const state = {
   route: "home",
@@ -34,9 +32,7 @@ const state = {
   filterValue: "",
   sort: { col: null, dir: "asc" },
   lastUpdate: null,
-  numericColumns: [],
-  chartColumns: [],
-  dataCache: new Map(), // key: sheetName -> { headers, rows, ts }
+  dataCache: new Map(), // sheetName -> { headers, rows, ts }
 };
 
 const qs = (sel) => document.querySelector(sel);
@@ -47,7 +43,7 @@ const qsa = (sel) => Array.from(document.querySelectorAll(sel));
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
   buildNav();
-  buildHomeCards(); // mostra cards com “lazy load” de stats
+  buildHomeCards();
 
   // Navegação
   qsa(".nav-btn").forEach(b => b.addEventListener("click", () => go("home")));
@@ -55,42 +51,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Controles
   const rowsSelect = qs("#rows-select");
-  rowsSelect.value = state.rowsPerPage;
-  rowsSelect.addEventListener("change", (e) => {
-    state.rowsPerPage = clamp(parseInt(e.target.value, 10) || CONFIG.defaultRowsPerPage, 1, CONFIG.maxRowsPerPage);
-    localStorage.setItem("rowsPerPage", String(state.rowsPerPage));
-    state.page = 1;
-    renderCurrent();
-  });
+  if (rowsSelect) {
+    rowsSelect.value = state.rowsPerPage;
+    rowsSelect.addEventListener("change", (e) => {
+      state.rowsPerPage = clamp(parseInt(e.target.value, 10) || CONFIG.defaultRowsPerPage, 1, CONFIG.maxRowsPerPage);
+      localStorage.setItem("rowsPerPage", String(state.rowsPerPage));
+      state.page = 1;
+      renderCurrent();
+    });
+  }
 
-  qs("#search-input").addEventListener("input", debounce((e) => {
-    state.search = (e.target.value || "").trim();
-    state.page = 1;
-    renderCurrent();
-  }, 200));
+  const searchInput = qs("#search-input");
+  if (searchInput) {
+    searchInput.addEventListener("input", debounce((e) => {
+      state.search = (e.target.value || "").trim();
+      state.page = 1;
+      renderCurrent();
+    }, 200));
+  }
 
-  qs("#filter-column").addEventListener("change", (e) => {
-    state.filterColumn = e.target.value || "";
-    state.page = 1;
-    renderCurrent();
-  });
-  qs("#filter-value").addEventListener("input", debounce((e) => {
-    state.filterValue = (e.target.value || "").trim();
-    state.page = 1;
-    renderCurrent();
-  }, 200));
+  const filterColumn = qs("#filter-column");
+  if (filterColumn) {
+    filterColumn.addEventListener("change", (e) => {
+      state.filterColumn = e.target.value || "";
+      state.page = 1;
+      renderCurrent();
+    });
+  }
+
+  const filterValue = qs("#filter-value");
+  if (filterValue) {
+    filterValue.addEventListener("input", debounce((e) => {
+      state.filterValue = (e.target.value || "").trim();
+      state.page = 1;
+      renderCurrent();
+    }, 200));
+  }
 
   qs("#btn-prev").addEventListener("click", () => { state.page = Math.max(1, state.page - 1); renderCurrent(); });
   qs("#btn-next").addEventListener("click", () => { state.page = state.page + 1; renderCurrent(); });
 
   qs("#btn-export").addEventListener("click", exportCSV);
-
-  qs("#btn-apply-chart").addEventListener("click", () => {
-    const select = qs("#chart-columns");
-    const selected = Array.from(select.selectedOptions).map(o => o.value);
-    state.chartColumns = selected.slice(0, CONFIG.chartMaxSeries);
-    drawChart();
-  });
 
   // Roteamento Simples via hash
   window.addEventListener("hashchange", handleHashRoute);
@@ -104,22 +105,19 @@ function handleHashRoute(){
   const hash = decodeURIComponent(location.hash.replace(/^#/, "")) || "";
   if (!hash) return;
   const [r, sheet] = hash.split(":");
-  if (r === "sheet" && sheet) {
-    openSheet(sheet);
-  }
+  if (r === "sheet" && sheet) openSheet(sheet);
 }
 
 function go(view){
   state.route = view;
   toggleView(view);
-  if (view === "home") {
-    location.hash = "";
-  }
+  if (view === "home") location.hash = "";
 }
 
 function toggleView(view){
   qsa(".view").forEach(v => v.classList.remove("active"));
-  qs(`#view-${view}`).classList.add("active");
+  const target = qs(`#view-${view}`);
+  if (target) target.classList.add("active");
 }
 
 /* =========================
@@ -127,6 +125,7 @@ function toggleView(view){
 ========================= */
 function buildNav(){
   const nav = qs("#nav-sheets");
+  if (!nav) return;
   nav.innerHTML = "";
   CONFIG.sheets.filter(s => s.enabled).forEach(s => {
     const btn = document.createElement("button");
@@ -139,6 +138,7 @@ function buildNav(){
 
 function buildHomeCards(){
   const wrap = qs("#sheet-cards");
+  if (!wrap) return;
   wrap.innerHTML = "";
   CONFIG.sheets.filter(s => s.enabled).forEach(async (s) => {
     const card = document.createElement("div");
@@ -159,14 +159,17 @@ function buildHomeCards(){
     wrap.appendChild(card);
     card.querySelector(`#open-${cssId(s.key)}`).addEventListener("click", () => openSheet(s.key));
 
-    // Pré-carrega contagem (não trava a UI)
     try{
-      const { headers, rows } = await loadSheet(s.key, { metadataOnly:false, partial:true });
-      qs(`#meta-${cssId(s.key)}-rows`).innerHTML = `<i class="fas fa-database"></i> ${rows.length} linhas`;
-      qs(`#meta-${cssId(s.key)}-cols`).innerHTML = `<i class="fas fa-table-columns"></i> ${headers.length} colunas`;
+      const { headers, rows } = await loadSheet(s.key);
+      const r = qs(`#meta-${cssId(s.key)}-rows`);
+      const c = qs(`#meta-${cssId(s.key)}-cols`);
+      if (r) r.innerHTML = `<i class="fas fa-database"></i> ${rows.length} linhas`;
+      if (c) c.innerHTML = `<i class="fas fa-table-columns"></i> ${headers.length} colunas`;
     }catch(e){
-      qs(`#meta-${cssId(s.key)}-rows`).textContent = "Erro ao ler";
-      qs(`#meta-${cssId(s.key)}-cols`).textContent = "";
+      const r = qs(`#meta-${cssId(s.key)}-rows`);
+      const c = qs(`#meta-${cssId(s.key)}-cols`);
+      if (r) r.textContent = "Erro ao ler";
+      if (c) c.textContent = "";
     }
   });
 }
@@ -175,13 +178,18 @@ function buildHomeCards(){
    ABERTURA DE ABA
 ========================= */
 async function openSheet(sheetName){
-  // UI
   go("data");
   location.hash = `sheet:${encodeURIComponent(sheetName)}`;
-  qs("#sheet-title span").textContent = sheetName;
-  qs("#table-head").innerHTML = "";
-  qs("#table-body").innerHTML = "";
-  qs("#table-spinner").style.display = "block";
+
+  const title = qs("#sheet-title span");
+  if (title) title.textContent = sheetName;
+
+  const head = qs("#table-head");
+  const body = qs("#table-body");
+  const spinner = qs("#table-spinner");
+  if (head) head.innerHTML = "";
+  if (body) body.innerHTML = "";
+  if (spinner) spinner.style.display = "block";
   setStats({rows:0, cols:0, pages:1, visible:0});
   toast("Carregando dados…");
 
@@ -193,11 +201,10 @@ async function openSheet(sheetName){
     state.filterColumn = "";
     state.filterValue = "";
     state.sort = { col: null, dir: "asc" };
-    state.numericColumns = inferNumericColumns(rows, headers);
     populateControls(headers);
     renderCurrent();
   }catch(err){
-    qs("#table-spinner").style.display = "none";
+    if (spinner) spinner.style.display = "none";
     toast(`Erro ao carregar: ${err.message}`, true);
   }
 }
@@ -208,7 +215,6 @@ async function openSheet(sheetName){
 function applyAllTransforms(rows, headers){
   let out = rows;
 
-  // filtro por coluna (exato, case-insensitive)
   if (state.filterColumn && state.filterValue) {
     const idx = headers.indexOf(state.filterColumn);
     if (idx >= 0) {
@@ -217,13 +223,11 @@ function applyAllTransforms(rows, headers){
     }
   }
 
-  // busca fulltext
   if (state.search) {
     const term = state.search.toLowerCase();
     out = out.filter(r => r.some(cell => String(cell ?? "").toLowerCase().includes(term)));
   }
 
-  // ordenação estável
   if (state.sort.col !== null) {
     const idx = headers.indexOf(state.sort.col);
     const dir = state.sort.dir === "desc" ? -1 : 1;
@@ -238,7 +242,7 @@ function applyAllTransforms(rows, headers){
 ========================= */
 function renderCurrent(){
   const sp = qs("#table-spinner");
-  sp.style.display = "none";
+  if (sp) sp.style.display = "none";
 
   const cache = state.dataCache.get(state.currentSheet);
   if (!cache) return;
@@ -248,7 +252,6 @@ function renderCurrent(){
 
   const rows = applyAllTransforms(baseRows, headers);
 
-  // paginação
   const total = rows.length;
   const pages = Math.max(1, Math.ceil(total / state.rowsPerPage));
   state.page = clamp(state.page, 1, pages);
@@ -257,15 +260,14 @@ function renderCurrent(){
   const pageRows = rows.slice(start, end);
 
   renderHeader(headers);
-  renderBodyChunked(pageRows, headers); // incremental para longas
+  renderBodyChunked(pageRows, headers);
   updatePagination(pages, total);
   setStats({rows: baseRows.length, cols: headers.length, pages, visible: total});
-  updateChartSelectors(headers);
-  drawChart();
 }
 
 function renderHeader(headers){
   const thead = qs("#table-head");
+  if (!thead) return;
   const tr = document.createElement("tr");
   tr.append(...headers.map(h => {
     const th = document.createElement("th");
@@ -282,17 +284,17 @@ function renderHeader(headers){
 
 function renderBodyChunked(rows, headers){
   const tbody = qs("#table-body");
+  if (!tbody) return;
   tbody.innerHTML = "";
 
-  // chunked rendering para manter UI fluida
   const CHUNK = 200;
   let i = 0;
-  function renderChunk(deadline){
+  function renderChunk(){
     let count = 0;
     while (i < rows.length && count < CHUNK) {
       const tr = document.createElement("tr");
       const r = rows[i];
-      r.forEach((cell, idx) => {
+      r.forEach((cell) => {
         const td = document.createElement("td");
         td.textContent = formatCell(cell);
         tr.appendChild(td);
@@ -312,104 +314,36 @@ function renderBodyChunked(rows, headers){
 }
 
 function updatePagination(pages, total){
-  qs("#page-info").textContent = `Página ${state.page} de ${pages}`;
+  const info = qs("#page-info");
+  if (info) info.textContent = `Página ${state.page} de ${pages}`;
   const prev = qs("#btn-prev");
   const next = qs("#btn-next");
-  prev.disabled = state.page <= 1;
-  next.disabled = state.page >= pages;
+  if (prev) prev.disabled = state.page <= 1;
+  if (next) next.disabled = state.page >= pages;
 }
 
 function setStats({rows, cols, pages, visible}){
-  qs("#stat-rows").textContent = rows;
-  qs("#stat-cols").textContent = cols;
-  qs("#stat-pages").textContent = pages;
-  qs("#stat-visible").textContent = visible;
+  const sr = qs("#stat-rows");
+  const sc = qs("#stat-cols");
+  const sp = qs("#stat-pages");
+  const sv = qs("#stat-visible");
+  if (sr) sr.textContent = rows;
+  if (sc) sc.textContent = cols;
+  if (sp) sp.textContent = pages;
+  if (sv) sv.textContent = visible;
   const stamp = new Date().toLocaleString();
-  qs("#last-update").textContent = `Atualizado: ${stamp}`;
+  const upd = qs("#last-update");
+  if (upd) upd.textContent = `Atualizado: ${stamp}`;
   state.lastUpdate = stamp;
 }
 
 function populateControls(headers){
-  // filtro por coluna
   const colSel = qs("#filter-column");
-  colSel.innerHTML = `<option value="">(Todas)</option>` + headers.map(h => `<option value="${escapeHtml(h)}">${escapeHtml(h)}</option>`).join("");
-
-  // reset busca/filtros
-  qs("#search-input").value = "";
-  qs("#filter-value").value = "";
-
-  // múltipla escolha de colunas numéricas para gráficos
-  updateChartSelectors(headers);
-}
-
-/* =========================
-   CHARTS (Chart.js)
-========================= */
-let chartInstance = null;
-
-function updateChartSelectors(headers){
-  const select = qs("#chart-columns");
-  const cache = state.dataCache.get(state.currentSheet);
-  if (!cache) return;
-  const numeric = inferNumericColumns(cache.rows, headers);
-  state.numericColumns = numeric;
-  select.innerHTML = numeric.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
-  // Seleciona automaticamente até 2 séries na primeira carga
-  if (state.chartColumns.length === 0) {
-    state.chartColumns = numeric.slice(0, 2);
-    for (const opt of select.options) {
-      if (state.chartColumns.includes(opt.value)) opt.selected = true;
-    }
+  if (colSel) {
+    colSel.innerHTML = `<option value="">(Todas)</option>` + headers.map(h => `<option value="${escapeHtml(h)}">${escapeHtml(h)}</option>`).join("");
   }
-}
-
-function drawChart(){
-  const canvas = qs("#chart-main");
-  const ctx = canvas.getContext("2d");
-  const cache = state.dataCache.get(state.currentSheet);
-  if (!cache) return;
-
-  const headers = cache.headers;
-  const rows = applyAllTransforms(cache.rows, headers);
-  const total = rows.length;
-  const start = (state.page - 1) * state.rowsPerPage;
-  const end = Math.min(start + state.rowsPerPage, total);
-  const pageRows = rows.slice(start, end);
-
-  // eixo X: índice da linha na página
-  const labels = pageRows.map((_, i) => `#${start + i + 1}`);
-
-  // datasets das colunas numéricas escolhidas
-  const datasets = state.chartColumns
-    .filter(c => headers.includes(c))
-    .slice(0, CONFIG.chartMaxSeries)
-    .map((colName, idx) => {
-      const ci = headers.indexOf(colName);
-      const data = pageRows.map(r => toNumber(r[ci]));
-      return {
-        label: colName,
-        data,
-        // NÃO definimos cores explicitamente (seguir instrução do ambiente)
-      };
-    });
-
-  // destruir anterior para evitar vazamento
-  if (chartInstance) {
-    chartInstance.destroy();
-    chartInstance = null;
-  }
-
-  chartInstance = new Chart(ctx, {
-    type: "line",
-    data: { labels, datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: "nearest", intersect: false },
-      plugins: { legend: { position: "top" }, tooltip: { enabled: true } },
-      scales: { x: { ticks: { autoSkip: true, maxTicksLimit: 12 } }, y: { beginAtZero: true } }
-    }
-  });
+  const si = qs("#search-input"); if (si) si.value = "";
+  const fv = qs("#filter-value"); if (fv) fv.value = "";
 }
 
 /* =========================
@@ -425,7 +359,7 @@ function exportCSV(){
     headers.map(csvEscape).join(","),
     ...rows.map(r => r.map(csvEscape).join(","))
   ];
-  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const blob = new Blob([lines.join("\\n")], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -435,9 +369,9 @@ function exportCSV(){
 }
 
 /* =========================
-   CARREGAMENTO DA PLANILHA (GViz JSON)
+   CARREGAMENTO (GViz JSON)
 ========================= */
-async function loadSheet(sheetName, { metadataOnly=false, partial=false } = {}){
+async function loadSheet(sheetName){
   const cached = state.dataCache.get(sheetName);
   const now = Date.now();
   if (cached && (now - cached.ts < CONFIG.cacheTtlMs)) {
@@ -460,7 +394,6 @@ async function loadSheet(sheetName, { metadataOnly=false, partial=false } = {}){
     throw new Error(`Falha de rede ou acesso (${err.message})`);
   }
 
-  // Resposta vem como "google.visualization.Query.setResponse({...})"
   const json = parseGViz(text);
   if (!json || !json.table || !Array.isArray(json.table.cols) || !Array.isArray(json.table.rows)) {
     throw new Error("Formato inesperado da resposta");
@@ -487,52 +420,33 @@ function parseGViz(raw){
 ========================= */
 function normalizeRow(rowObj, headerLen){
   const out = new Array(headerLen).fill("");
-  const cells = rowObj?.c || [];
+  const cells = rowObj && Array.isArray(rowObj.c) ? rowObj.c : [];
   for (let i=0; i<headerLen; i++){
     const cell = cells[i];
     if (!cell) { out[i] = ""; continue; }
-    // valor cru
     let v = cell.v;
-    // datas do GViz vêm como objetos de data em alguns casos -> converte para ISO curto
     if (cell.f && isLikelyDateFormat(cell.f, v)) {
       out[i] = formatAsDate(v);
       continue;
-    }
-    if (typeof v === "object" && v !== null && "f" in cell && "v" in cell) {
-      // fallback
     }
     out[i] = v == null ? "" : v;
   }
   return out;
 }
 
-function isLikelyDateFormat(fmt, val){
-  // heurística simples
-  return /\by\b|\bY\b|dd|mm|mmm|yyyy|\/|-/.test(fmt) || (typeof val === "string" && /\d{2,4}[\/-]\d{1,2}[\/-]\d{1,2}/.test(val));
+function isLikelyDateFormat(fmt, val) {
+  return /\by\b|\bY\b|dd|mm|mmm|yyyy|\/+|-/.test(fmt) ||
+         (typeof val === 'string' && /\d{2,4}[\/-]\d{1,2}[\/-]\d{1,2}/.test(val));
 }
 
-function formatAsDate(v){
-  try{
+function formatAsDate(v) {
+  try {
     const d = new Date(v);
-    if (!isNaN(d)) return d.toISOString().slice(0,10);
+    if (!isNaN(d)) return d.toISOString().slice(0, 10);
     return String(v);
-  }catch{ return String(v); }
-}
-
-function inferNumericColumns(rows, headers){
-  const n = Math.min(rows.length, 200); // amostra
-  const numeric = [];
-  for (let c=0; c<headers.length; c++){
-    let count = 0, valid = 0;
-    for (let r=0; r<n; r++){
-      const x = rows[r][c];
-      if (x === "" || x === null || typeof x === "undefined") continue;
-      valid++;
-      if (!isNaN(toNumber(x))) count++;
-    }
-    if (valid > 0 && count / valid >= 0.9) numeric.push(headers[c]);
+  } catch {
+    return String(v);
   }
-  return numeric;
 }
 
 /* =========================
@@ -559,7 +473,6 @@ function stableSort(arr, cmp){
 }
 
 function compareSmart(a, b){
-  // tenta numérico, data, depois string
   const na = toNumber(a), nb = toNumber(b);
   if (!isNaN(na) && !isNaN(nb)) return na - nb;
   const da = Date.parse(a), db = Date.parse(b);
@@ -570,8 +483,7 @@ function compareSmart(a, b){
 function toNumber(x){
   if (typeof x === "number") return x;
   if (typeof x !== "string") return NaN;
-  // converte formatos pt-BR como "1.234,56"
-  const s = x.replace(/\./g,"").replace(",",".").replace(/[^\d.-]/g,"");
+  const s = x.replace(/\\./g,"").replace(",",".").replace(/[^\\d.-]/g,"");
   const n = Number(s);
   return isNaN(n) ? NaN : n;
 }
@@ -580,17 +492,30 @@ function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
 function debounce(fn, ms=150){
   let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn(...args), ms); };
 }
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
-function slugify(s){ return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/gi,"-").replace(/(^-|-$)/g,"").toLowerCase(); }
+function escapeHtml(s){
+  return String(s).replace(/[&<>\"']/g, (m) => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    "\"":"&quot;",
+    "'":"&#39;"
+  }[m]));
+}
+function slugify(s){
+  return String(s)
+    .normalize("NFD")
+    .replace(/[\\u0300-\\u036f]/g,"")
+    .replace(/[^a-z0-9]+/gi,"-")
+    .replace(/(^-|-$)/g,"")
+    .toLowerCase();
+}
 function csvEscape(v){
   const s = String(v ?? "");
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+  if (/[\",\\n]/.test(s)) return `\"${s.replace(/\"/g,'\"\"')}\"`;
   return s;
 }
 function cssId(s){ return slugify(s); }
-function shortName(s){
-  return s.length > 22 ? s.slice(0,19) + "…" : s;
-}
+function shortName(s){ return s.length > 22 ? s.slice(0,19) + "…" : s; }
 
 function formatCell(v){
   if (v === true) return "SIM";
@@ -604,6 +529,7 @@ function formatCell(v){
 let toastTimer = null;
 function toast(msg, isError=false){
   const el = qs("#toast");
+  if (!el) return;
   el.textContent = msg;
   el.style.background = isError ? "#991b1b" : "#0f172a";
   el.classList.add("show");
