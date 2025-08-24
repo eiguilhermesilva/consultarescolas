@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SheetsDB — Google Sheets como Banco de Dados</title>
-  <meta name="description" content="Use o Google Sheets como banco de dados no GitHub Pages, com múltiplas abas, paginação, ordenação, busca e exportação CSV."/>
+  <title>Dashboard da Planilha — Apresentação</title>
+  <meta name="description" content="Apresentação organizada de uma planilha do Google Sheets com múltiplas abas, paginação, busca, ordenação e exportação."/>
   <link rel="preconnect" href="https://docs.google.com" />
   <link rel="preconnect" href="https://spreadsheets.google.com" />
   <link rel="stylesheet" href="./styles.css" />
@@ -13,133 +13,67 @@
 <body>
   <header class="site-header">
     <div class="brand">
-      <i class="fa-solid fa-database" aria-hidden="true"></i>
-      <h1>SheetsDB</h1>
+      <i class="fa-solid fa-table-list" aria-hidden="true"></i>
+      <h1>Relatório da Planilha</h1>
     </div>
-    <p class="subtitle">Use o Google Sheets como banco de dados para seu site no GitHub Pages</p>
+    <p class="subtitle">Dados atualizados diretamente do Google Sheets (somente leitura)</p>
   </header>
 
   <main class="container">
-    <section class="dashboard">
-      <!-- Sidebar -->
-      <aside class="sidebar">
-        <article class="card">
-          <h2 class="card-title"><i class="fa-solid fa-circle-info"></i> Como usar</h2>
-          <ol class="steps">
-            <li>Crie/abra uma planilha pública no Google Sheets.</li>
-            <li>Compartilhe como <strong>qualquer pessoa com o link</strong> (Arquivo → Compartilhar → Geral).</li>
-            <li>Copie o <strong>ID</strong> da URL.</li>
-            <li>Cole abaixo e clique em <strong>Carregar</strong>.</li>
-          </ol>
-          <p class="muted">Formato da URL:</p>
-          <code class="code-inline">https://docs.google.com/spreadsheets/d/SEU_ID_AQUI/edit#gid=0</code>
-        </article>
+    <section class="main">
+      <div id="error" class="alert hidden" role="alert" aria-live="assertive"></div>
 
-        <article class="card">
-          <h3 class="card-title"><i class="fa-solid fa-plug"></i> Conexão</h3>
-          <div class="field">
-            <label for="sheet-id">ID da Planilha</label>
-            <input id="sheet-id" class="input-base" placeholder="Cole o ID da sua planilha" />
-          </div>
-          <div class="actions">
-            <button id="load-btn" class="btn primary">
-              <i class="fa-solid fa-download"></i> Carregar
-            </button>
-            <button id="reset-btn" class="btn">
-              <i class="fa-solid fa-rotate"></i> Limpar
-            </button>
-          </div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-label">Itens (aba)</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-cols">0</div>
+          <div class="stat-label">Colunas</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-sheet">-</div>
+          <div class="stat-label">Aba atual</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-updated">-</div>
+          <div class="stat-label">Última atualização</div>
+        </div>
+      </div>
 
-          <details class="card hint">
-            <summary><strong>Exemplo de teste</strong></summary>
-            <p>Use este ID público (Google Class Data):</p>
-            <code class="code-inline selectable">1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms</code>
-          </details>
-        </article>
+      <nav class="tabs" id="tabs" aria-label="Abas da planilha"></nav>
 
-        <article class="card">
-          <h3 class="card-title"><i class="fa-solid fa-gear"></i> Preferências</h3>
-          <div class="field">
-            <label for="rows-per-page">Linhas por página</label>
-            <select id="rows-per-page" class="input-base">
-              <option value="25" selected>25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-              <option value="200">200</option>
-            </select>
-          </div>
+      <div class="tools">
+        <div class="field grow">
+          <label for="search-input" class="visually-hidden">Busca</label>
+          <input id="search-input" class="input-base" placeholder="Buscar na página atual..." disabled />
+        </div>
+        <button id="export-csv" class="btn" disabled><i class="fa-solid fa-file-arrow-down"></i> CSV (página)</button>
+        <button id="export-all" class="btn" disabled><i class="fa-solid fa-database"></i> CSV (tudo)</button>
+      </div>
 
-          <div class="field">
-            <label for="header-rows">Cabeçalhos</label>
-            <select id="header-rows" class="input-base">
-              <option value="1" selected>Primeira linha é cabeçalho</option>
-              <option value="0">Sem cabeçalho (A, B, C...)</option>
-              <option value="2">Duas linhas (mescladas)</option>
-            </select>
-          </div>
-
-          <div class="field switcher">
-            <input type="checkbox" id="cache-toggle" checked />
-            <label for="cache-toggle">Usar cache local (mais rápido)</label>
-          </div>
-        </article>
-      </aside>
-
-      <!-- Main -->
-      <section class="main">
-        <div id="error" class="alert hidden" role="alert" aria-live="assertive"></div>
-
-        <div class="stats">
-          <div class="stat">
-            <div class="stat-value" id="stat-total">0</div>
-            <div class="stat-label">Itens na aba</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value" id="stat-cols">0</div>
-            <div class="stat-label">Colunas</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value" id="stat-sheet">-</div>
-            <div class="stat-label">Aba atual</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value" id="stat-updated">-</div>
-            <div class="stat-label">Última atualização</div>
-          </div>
+      <div class="table-wrap">
+        <div id="table-loader" class="loader hidden" aria-hidden="true">
+          <span class="spinner"></span>
+          <p>Carregando dados...</p>
         </div>
 
-        <div class="tools">
-          <div class="field grow">
-            <label for="search-input" class="visually-hidden">Busca</label>
-            <input id="search-input" class="input-base" placeholder="Buscar (na página carregada)..." disabled />
-          </div>
-          <button id="export-csv" class="btn" disabled><i class="fa-solid fa-file-arrow-down"></i> CSV</button>
+        <div id="table-container" class="table-container" role="table" aria-live="polite"></div>
+
+        <div id="table-footer" class="table-footer hidden"></div>
+
+        <div class="pagination">
+          <button id="prev" class="btn" disabled>Anterior</button>
+          <div id="page-info" class="page-info">Página 1 de 1</div>
+          <button id="next" class="btn" disabled>Próxima</button>
         </div>
-
-        <nav class="tabs" id="tabs" aria-label="Abas da planilha"></nav>
-
-        <div class="table-wrap">
-          <div id="table-loader" class="loader hidden" aria-hidden="true">
-            <span class="spinner"></span>
-            <p>Carregando dados...</p>
-          </div>
-
-          <div id="table-container" class="table-container" role="table" aria-live="polite">
-            <!-- tabela renderizada via JS -->
-          </div>
-
-          <div class="pagination">
-            <button id="prev" class="btn" disabled>Anterior</button>
-            <div id="page-info" class="page-info">Página 1 de 1</div>
-            <button id="next" class="btn" disabled>Próxima</button>
-          </div>
-        </div>
-      </section>
+      </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>SheetsDB — Google Sheets como Banco de Dados | GitHub Pages</p>
+    <p>Dados publicados via Google Sheets • Visualização estática no GitHub Pages</p>
   </footer>
 
   <script src="./app.js" defer></script>
