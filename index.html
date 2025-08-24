@@ -7,11 +7,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
   <link href="styles.css" rel="stylesheet">
-
-  <!-- Chart.js (CDN) -->
-  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-
-  <!-- App config + lógica -->
   <script defer src="app.js"></script>
 </head>
 <body>
@@ -24,14 +19,12 @@
       </div>
     </header>
 
-    <!-- NAV -->
     <nav class="top-nav">
       <button class="nav-btn" data-route="home"><i class="fas fa-house"></i> Início</button>
       <div class="nav-divider"></div>
       <div class="nav-sheets" id="nav-sheets"></div>
     </nav>
 
-    <!-- HOME / CARDS -->
     <main id="view-home" class="view active">
       <section>
         <h2 class="section-title"><i class="fas fa-layer-group"></i> Resumo por Aba</h2>
@@ -39,7 +32,6 @@
       </section>
     </main>
 
-    <!-- DATA VIEW -->
     <main id="view-data" class="view">
       <section class="sheet-header">
         <div class="sheet-title">
@@ -75,14 +67,6 @@
           <label for="filter-value"><i class="fas fa-filter-circle-dollar"></i> Valor</label>
           <input id="filter-value" class="input" type="text" placeholder="Digite um valor exato (case-insensitive)" />
         </div>
-        <div class="control-group">
-          <label for="chart-columns"><i class="fas fa-chart-line"></i> Colunas numéricas p/ gráfico</label>
-          <select id="chart-columns" class="input" multiple size="4" title="Selecione 1-3 colunas numéricas para o gráfico"></select>
-        </div>
-        <div class="control-group">
-          <label>&nbsp;</label>
-          <button id="btn-apply-chart" class="btn"><i class="fas fa-chart-simple"></i> Atualizar gráfico</button>
-        </div>
       </section>
 
       <section class="stats">
@@ -107,7 +91,6 @@
           <button id="btn-next" class="btn" disabled>Próxima <i class="fas fa-chevron-right"></i></button>
         </div>
       </section>
-
     </main>
 
     <footer class="site-footer">
@@ -115,7 +98,6 @@
     </footer>
   </div>
 
-  <!-- Toasts -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
